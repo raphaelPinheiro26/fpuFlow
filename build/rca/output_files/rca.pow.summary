@@ -1,0 +1,12 @@
+Power Analyzer Status : Successful - Mon Oct 20 04:03:25 2025
+Quartus Prime Version : 20.1.1 Build 720 11/11/2020 SJ Lite Edition
+Revision Name : rca
+Top-level Entity Name : rca
+Family : Cyclone V
+Device : 5CSEMA5F31C6
+Power Models : Final
+Total Thermal Power Dissipation : 420.96 mW
+Core Dynamic Thermal Power Dissipation : 0.00 mW
+Core Static Thermal Power Dissipation : 411.23 mW
+I/O Thermal Power Dissipation : 9.73 mW
+Power Estimation Confidence : Low: user provided insufficient toggle rate data
