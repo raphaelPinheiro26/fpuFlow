@@ -1,9 +1,9 @@
 import os
 import subprocess
 import time
+import re
 import shutil
 import config
-
 
 # ========================
 # FUNÇÕES AUXILIARES
@@ -27,11 +27,28 @@ def run_cmd(cmd, logfile):
         return True
 
 
-def copy_files_for_project(project_name, module_name, dependencies):
+# ========================
+# CRIAÇÃO DO PROJETO
+# ========================
+def get_all_dependencies(module, dependencies_dict, seen=None):
+    if seen is None:
+        seen = set()
+    if module in seen:
+        return set()
+    seen.add(module)
+    deps = set()
+    for dep in dependencies_dict.get(module, []):
+        deps.add(dep)
+        deps.update(get_all_dependencies(dep, dependencies_dict, seen))
+    return deps
+
+def copy_files_for_project(project_name, module_name, dependencies_dict):
     project_path = config.BUILD_DIR / project_name
     project_path.mkdir(parents=True, exist_ok=True)
 
-    files_to_copy = [module_name] + dependencies
+    # pega todas as dependências recursivamente
+    all_deps = get_all_dependencies(module_name, dependencies_dict)
+    files_to_copy = [module_name] + list(all_deps)
     copied_files = []
 
     for f in files_to_copy:
@@ -43,7 +60,7 @@ def copy_files_for_project(project_name, module_name, dependencies):
         shutil.copy(src_file, dst_file)
         copied_files.append(dst_file)
 
-    # Copiar arquivos SDC da pasta config.SDC_DIR para a pasta do projeto
+    # Copiar arquivos SDC da pasta config.SDC_DIR
     sdc_files = list(config.SDC_DIR.glob("*.sdc"))
     copied_sdc_files = []
     for sdc_file in sdc_files:
@@ -55,9 +72,8 @@ def copy_files_for_project(project_name, module_name, dependencies):
     return project_path, copied_files, copied_sdc_files
 
 
-def generate_qsf(project_path, top_module, rtl_files, sdc_files=[]):
-    import os
 
+def generate_qsf(project_path, top_module, rtl_files, sdc_files=[]):
     qsf_path = project_path / f"{top_module}.qsf"
     with open(qsf_path, "w") as f:
         # --------------------------------------
@@ -97,8 +113,6 @@ def generate_qsf(project_path, top_module, rtl_files, sdc_files=[]):
     print(f"📝 QSF gerado: {qsf_path.name}")
 
 
-
-
 def create_qpf(project_path, project_name):
     qpf_path = project_path / f"{project_name}.qpf"
     if not qpf_path.exists():
@@ -110,6 +124,40 @@ def create_qpf(project_path, project_name):
         print("ℹ️ QPF já existente.")
 
 
+# ========================
+# ALTERAR PARÂMETRO N
+# ========================
+def set_parameter_in_verilog(module_name, project_path, param_name, value):
+    """Atualiza o valor de um parâmetro no arquivo Verilog sem quebrar a sintaxe."""
+    top_file = project_path / f"{module_name}.v"
+    if not top_file.exists():
+        print(f"❌ Arquivo {top_file} não encontrado.")
+        return False
+
+    with open(top_file, "r") as f:
+        content = f.read()
+
+    # Regex para capturar algo como: parameter N = 8 ou parameter N=16
+    pattern = rf"(parameter\s+{param_name}\s*=\s*)(\d+)"
+    replacement = r"\g<1>" + str(value)  # substitui apenas o número
+
+    new_content, count = re.subn(pattern, replacement, content)
+
+    if count > 0:
+        with open(top_file, "w") as f:
+            f.write(new_content)
+        print(f"🔧 Parâmetro {param_name} atualizado para {value} em {top_file.name}")
+        return True
+    else:
+        print(f"⚠️ Parâmetro '{param_name}' não encontrado em {top_file.name} (nenhuma modificação feita)")
+        return False
+
+
+
+
+# ========================
+# COMPILAÇÃO COMPLETA
+# ========================
 def compile_project(project_name, project_path):
     os.chdir(project_path)
     print(f"\n🚀 Compilando projeto {project_name} com todos os núcleos disponíveis...")

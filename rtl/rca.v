@@ -1,7 +1,7 @@
 module rca #(
     parameter N = 8   // número de bits
 )(
-	 input  wire CLOCK_50,   // clock físico da FPGA
+	input  wire CLOCK_50,   // clock físico da FPGA
     input  wire [N-1:0] A, B,
     input  wire Cin,
     output wire [N-1:0] S,
