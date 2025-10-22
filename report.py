@@ -1,6 +1,7 @@
 import re
 import csv
 import config
+
 # ========================
 # PARSER DE RELATÓRIOS COMPLETO
 # ========================
@@ -59,6 +60,9 @@ def extract_data_from_reports(project_name, project_path):
             else:
                 hold[clk] = val
 
+    data["SetupSlack"] = setup
+    data["HoldSlack"] = hold
+
     # Recursos
     fit_text = read(fit)
     patterns = {
@@ -76,36 +80,44 @@ def extract_data_from_reports(project_name, project_path):
         m = re.search(ptn, fit_text)
         data[k] = m.group(1).strip() if m else "-"
 
-    # Potência
-    power = {}
+    # ========================
+    # POTÊNCIA E CORRENTES
+    # ========================
+    power = {"Total": "", "Dynamic": "", "Static": "", "IO": ""}
     pow_sum_text = read(pow_sum)
     for line in pow_sum_text.splitlines():
-        if "Total Thermal Power Dissipation" in line:
+        if re.search(r"Total\s+Thermal\s+Power", line, re.I):
             m = re.search(r"([\d\.]+)\s*mW", line)
             if m: power["Total"] = m.group(1)
-        elif "Core Dynamic Thermal Power" in line:
+        elif re.search(r"Core\s+Dynamic", line, re.I):
             m = re.search(r"([\d\.]+)\s*mW", line)
             if m: power["Dynamic"] = m.group(1)
-        elif "Core Static Thermal Power" in line:
+        elif re.search(r"Core\s+Static", line, re.I):
             m = re.search(r"([\d\.]+)\s*mW", line)
             if m: power["Static"] = m.group(1)
-        elif "I/O Thermal Power" in line:
+        elif re.search(r"I/?O\s+Thermal\s+Power", line, re.I):
             m = re.search(r"([\d\.]+)\s*mW", line)
             if m: power["IO"] = m.group(1)
 
-    vcc = {}
+    # ========================
+    # CORRENTES POR FONTE (VCC, VCCIO, etc.)
+    # ========================
+    vcc_data = {}
     pow_rpt_text = read(pow_rpt)
     for line in pow_rpt_text.splitlines():
-        if line.strip().startswith("; VCC"):
-            m = re.findall(r"([\d\.]+)\s*mA", line)
-            if len(m) >= 3:
-                vcc = {"Total": m[0], "Dynamic": m[1], "Static": m[2]}
-            break
+        m_header = re.match(r"^\s*;\s*(VCC\S*)", line, re.I)
+        if m_header:
+            name = m_header.group(1).strip()
+            m_vals = re.findall(r"([\d\.]+)\s*mA", line)
+            if len(m_vals) >= 3:
+                vcc_data[name] = {
+                    "Total": m_vals[0],
+                    "Dynamic": m_vals[1],
+                    "Static": m_vals[2]
+                }
 
     data["Power"] = power
-    data["VCC"] = vcc
-    data["SetupSlack"] = setup
-    data["HoldSlack"] = hold
+    data["VCCs"] = vcc_data
 
     return data
 
@@ -134,6 +146,12 @@ def write_consolidated_report(all_data):
         writer.writerow(header)
 
         for data in all_data:
+            power = data.get("Power", {"Total": "", "Dynamic": "", "Static": "", "IO": ""})
+            
+            # 🔹 pega apenas a fonte principal (VCC) ou VCCINT se não existir
+            vcc_data = data.get("VCCs", {})
+            vcc = vcc_data.get("VCC", vcc_data.get("VCCINT", {"Total": "", "Dynamic": "", "Static": ""}))
+
             for clk in data.get("Clocks", []):
                 clk_name = clk["Clock"]
                 row = [
@@ -142,8 +160,8 @@ def write_consolidated_report(all_data):
                     clk_name,
                     clk.get("Fmax", ""),
                     clk.get("Restricted_Fmax", ""),
-                    data["SetupSlack"].get(clk_name, ""),
-                    data["HoldSlack"].get(clk_name, ""),
+                    data.get("SetupSlack", {}).get(clk_name, ""),
+                    data.get("HoldSlack", {}).get(clk_name, ""),
                     data.get("Logic utilization (in ALMs)", ""),
                     data.get("Total registers", ""),
                     data.get("Total pins", ""),
@@ -153,13 +171,13 @@ def write_consolidated_report(all_data):
                     data.get("Total DSP Blocks", ""),
                     data.get("Total PLLs", ""),
                     data.get("Total DLLs", ""),
-                    data["Power"].get("Total", ""),
-                    data["Power"].get("Dynamic", ""),
-                    data["Power"].get("Static", ""),
-                    data["Power"].get("IO", ""),
-                    data["VCC"].get("Total", ""),
-                    data["VCC"].get("Dynamic", ""),
-                    data["VCC"].get("Static", "")
+                    power.get("Total", ""),
+                    power.get("Dynamic", ""),
+                    power.get("Static", ""),
+                    power.get("IO", ""),
+                    vcc.get("Total", ""),
+                    vcc.get("Dynamic", ""),
+                    vcc.get("Static", "")
                 ]
                 writer.writerow(row)
 
