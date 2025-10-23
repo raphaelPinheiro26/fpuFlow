@@ -1,25 +1,5 @@
 {
   "half_adder": [],
   "full_adder": ["half_adder"],
-  "rca": ["full_adder"],
-
-  "bit_serial_adder": ["full_adder"],
-  "iterative_adder": ["rca"],
-  "carry_skip_adder": ["rca"],
-  "carry_select_adder": ["rca"],
-  "CSelA_op": ["carry_select_adder"],
-  "carry_increment_adder": ["rca"],
-  "conditional_sum_adder": ["hierarchical_cla"],
-  "carry_shifting_adder": ["full_adder"],
-
-  "hierarchical_cla": ["full_adder"],
-  "hierarchical_ling": ["full_adder"],
-
-  "kogge_stone_adder": [],
-  "brent_kung_adder": [],
-  "han_carlson_adder": [],
-  "ladner_fischer_adder": [],
-  "sklansky_adder": [],
-  "sparse_kogge_stone_adder": [],
-  "spanning_tree_adder": []
+  "rca": ["full_adder"]
 }
