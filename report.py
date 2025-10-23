@@ -5,8 +5,14 @@ import config
 # ========================
 # PARSER DE RELATÓRIOS COMPLETO
 # ========================
-def extract_data_from_reports(project_name, project_path):
-    out_dir = project_path / "output_files"
+def extract_data_from_reports(project_name, project_path, out_dir=None):
+    """
+    Extrai dados de relatórios Quartus (STA, FIT, MAP, POW) de uma pasta de saída específica.
+    Agora aceita `out_dir` para suportar múltiplas larguras de bits (output_files_N{N}).
+    """
+    if out_dir is None:
+        out_dir = project_path / "output_files"
+
     if not out_dir.exists():
         print(f"⚠️ Diretório de relatórios não encontrado para {project_name}")
         return None
@@ -18,20 +24,30 @@ def extract_data_from_reports(project_name, project_path):
     pow_sum = out_dir / f"{project_name}.pow.summary"
     pow_rpt = out_dir / f"{project_name}.pow.rpt"
 
-    def read(p): return p.read_text(errors="ignore") if p.exists() else ""
+    def read(p): 
+        return p.read_text(errors="ignore") if p.exists() else ""
+
     data = {"Project": project_name, "Top": project_name}
 
-    # Top-level
+    # ========================
+    # Top-level entity
+    # ========================
     map_text = read(mapr)
     m_top = re.search(r"Top-level Entity\s*:\s*\|?(\S+)\s*;", map_text)
     if m_top:
         data["Top"] = m_top.group(1).strip()
 
-    # Parameter (N)
-    m_param = re.search(r";\s*N\s*;\s*([\d\.]+)\s*;", map_text)
+    # ========================
+    # Parâmetro N (tolerante a variações)
+    # ========================
+    m_param = re.search(r"\bN\b\s*[:=]?\s*([\d]+)", map_text)
+    if not m_param:
+        m_param = re.search(r";\s*N\s*;\s*([\d\.]+)\s*;", map_text)
     data["Parameter"] = m_param.group(1) if m_param else ""
 
-    # Fmax
+    # ========================
+    # Fmax (MHz)
+    # ========================
     data["Clocks"] = []
     rpt_text = read(rpt)
     for line in rpt_text.splitlines():
@@ -44,7 +60,9 @@ def extract_data_from_reports(project_name, project_path):
                 "Restricted_Fmax": fmax_res
             })
 
-    # Setup/Hold Slack
+    # ========================
+    # Setup / Hold Slack
+    # ========================
     setup, hold = {}, {}
     sta_text = read(sta_sum)
     ctype, clk = None, None
@@ -63,7 +81,9 @@ def extract_data_from_reports(project_name, project_path):
     data["SetupSlack"] = setup
     data["HoldSlack"] = hold
 
-    # Recursos
+    # ========================
+    # Utilização de recursos
+    # ========================
     fit_text = read(fit)
     patterns = {
         "Logic utilization (in ALMs)": r"Logic utilization \(in ALMs\)\s*:\s*([^\n]+)",
@@ -81,7 +101,7 @@ def extract_data_from_reports(project_name, project_path):
         data[k] = m.group(1).strip() if m else "-"
 
     # ========================
-    # POTÊNCIA E CORRENTES
+    # Potência total e parciais (mW)
     # ========================
     power = {"Total": "", "Dynamic": "", "Static": "", "IO": ""}
     pow_sum_text = read(pow_sum)
@@ -100,7 +120,7 @@ def extract_data_from_reports(project_name, project_path):
             if m: power["IO"] = m.group(1)
 
     # ========================
-    # CORRENTES POR FONTE (VCC, VCCIO, etc.)
+    # Correntes por fonte (VCC, VCCIO, etc.)
     # ========================
     vcc_data = {}
     pow_rpt_text = read(pow_rpt)
@@ -123,7 +143,7 @@ def extract_data_from_reports(project_name, project_path):
 
 
 # ========================
-# RELATÓRIO CONSOLIDADO
+# RELATÓRIO CONSOLIDADO (CSV)
 # ========================
 def write_consolidated_report(all_data):
     config.REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -147,9 +167,8 @@ def write_consolidated_report(all_data):
 
         for data in all_data:
             power = data.get("Power", {"Total": "", "Dynamic": "", "Static": "", "IO": ""})
-            
-            # 🔹 pega apenas a fonte principal (VCC) ou VCCINT se não existir
             vcc_data = data.get("VCCs", {})
+            # 🔹 usa VCC principal ou VCCINT
             vcc = vcc_data.get("VCC", vcc_data.get("VCCINT", {"Total": "", "Dynamic": "", "Static": ""}))
 
             for clk in data.get("Clocks", []):

@@ -3,10 +3,12 @@ import subprocess
 import time
 import re
 import shutil
+from pathlib import Path
 import config
 
+
 # ========================
-# FUNÇÕES AUXILIARES
+# EXECUÇÃO DE COMANDOS
 # ========================
 def run_cmd(cmd, logfile):
     print(f"\n[EXECUTANDO] {' '.join(cmd)}")
@@ -28,7 +30,7 @@ def run_cmd(cmd, logfile):
 
 
 # ========================
-# CRIAÇÃO DO PROJETO
+# DEPENDÊNCIAS RECURSIVAS (LEGADO)
 # ========================
 def get_all_dependencies(module, dependencies_dict, seen=None):
     if seen is None:
@@ -42,11 +44,67 @@ def get_all_dependencies(module, dependencies_dict, seen=None):
         deps.update(get_all_dependencies(dep, dependencies_dict, seen))
     return deps
 
+
+# ========================
+# NOVA FUNÇÃO: CÓPIA HIERÁRQUICA
+# ========================
+def copy_hierarchical_projects(tree, parent_path=None):
+    """
+    Percorre o dicionário JSON hierárquico e replica a estrutura dentro de BUILD_DIR.
+    Só copia módulos que realmente existirem em RTL_DIR.
+    Retorna uma lista de (module_name, build_path, rtl_files, sdc_files).
+    """
+    if parent_path is None:
+        parent_path = config.RTL_DIR
+
+    built_projects = []
+
+    for name, node in tree.items():
+        rtl_path = parent_path / name
+        build_path = config.BUILD_DIR / rtl_path.relative_to(config.RTL_DIR)
+
+        # Verifica se o módulo existe
+        if not rtl_path.exists():
+            print(f"⚠️ Módulo '{name}' ignorado — pasta {rtl_path} não encontrada.")
+            continue
+
+        # Arquivos RTL e SDC
+        rtl_files = list(rtl_path.glob("*.v"))
+        sdc_files = list(rtl_path.glob("*.sdc"))
+
+        # Só cria se houver conteúdo relevante
+        if not rtl_files and not sdc_files:
+            print(f"⚠️ Pasta {rtl_path} ignorada (sem arquivos .v ou .sdc).")
+            continue
+
+        # Cria diretório correspondente no build
+        build_path.mkdir(parents=True, exist_ok=True)
+
+        # Copia os arquivos
+        copied_files = []
+        for f in rtl_files + sdc_files:
+            shutil.copy(f, build_path / f.name)
+            copied_files.append(f.name)
+
+        print(f"📂 [{name}] arquivos copiados: {copied_files}")
+
+        built_projects.append((name, build_path, rtl_files, sdc_files))
+
+        # Se tiver submódulos, desce um nível
+        for subname, subnode in node.items():
+            if isinstance(subnode, dict):
+                built_projects.extend(copy_hierarchical_projects({subname: subnode}, rtl_path))
+
+    return built_projects
+
+
+# ========================
+# CÓPIA PLANA (COMPATIBILIDADE LEGADA)
+# ========================
 def copy_files_for_project(project_name, module_name, dependencies_dict):
     project_path = config.BUILD_DIR / project_name
     project_path.mkdir(parents=True, exist_ok=True)
 
-    # pega todas as dependências recursivamente
     all_deps = get_all_dependencies(module_name, dependencies_dict)
     files_to_copy = [module_name] + list(all_deps)
     copied_files = []
@@ -60,7 +118,7 @@ def copy_files_for_project(project_name, module_name, dependencies_dict):
         shutil.copy(src_file, dst_file)
         copied_files.append(dst_file)
 
-    # Copiar arquivos SDC da pasta config.SDC_DIR
+    # Copia SDCs genéricos
     sdc_files = list(config.SDC_DIR.glob("*.sdc"))
     copied_sdc_files = []
     for sdc_file in sdc_files:
@@ -72,13 +130,13 @@ def copy_files_for_project(project_name, module_name, dependencies_dict):
     return project_path, copied_files, copied_sdc_files
 
 
-
+# ========================
+# GERAÇÃO DE QSF
+# ========================
 def generate_qsf(project_path, top_module, rtl_files, sdc_files=[]):
     qsf_path = project_path / f"{top_module}.qsf"
     with open(qsf_path, "w") as f:
-        # --------------------------------------
-        # Informações gerais do projeto
-        # --------------------------------------
+        # Informações gerais
         f.write(f'set_global_assignment -name FAMILY "Cyclone V"\n')
         f.write(f'set_global_assignment -name DEVICE 5CSEMA5F31C6\n')
         f.write(f'set_global_assignment -name TOP_LEVEL_ENTITY {top_module}\n')
@@ -91,28 +149,23 @@ def generate_qsf(project_path, top_module, rtl_files, sdc_files=[]):
         f.write(f'set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation\n')
         f.write(f'set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "SYSTEMVERILOG HDL" -section_id eda_simulation\n\n')
 
-        # --------------------------------------
-        # Arquivos RTL
-        # --------------------------------------
+        # Arquivos Verilog
         for rtl in rtl_files:
             rel_path = os.path.relpath(rtl, project_path)
             f.write(f'set_global_assignment -name VERILOG_FILE "{rel_path}"\n')
 
-        # --------------------------------------
         # Arquivos SDC
-        # --------------------------------------
         for sdc in sdc_files:
             f.write(f'set_global_assignment -name SDC_FILE "{sdc.name}"\n')
 
-        # --------------------------------------
-        # Placeholder para testbench
-        # --------------------------------------
-        f.write('\n# Para simulação, se houver testbench, você pode adicionar:')
         f.write('\n# set_global_assignment -name SYSTEMVERILOG_FILE <tb_file.sv>\n')
 
     print(f"📝 QSF gerado: {qsf_path.name}")
 
 
+# ========================
+# CRIAÇÃO DO QPF
+# ========================
 def create_qpf(project_path, project_name):
     qpf_path = project_path / f"{project_name}.qpf"
     if not qpf_path.exists():
@@ -128,7 +181,6 @@ def create_qpf(project_path, project_name):
 # ALTERAR PARÂMETRO N
 # ========================
 def set_parameter_in_verilog(module_name, project_path, param_name, value):
-    """Atualiza o valor de um parâmetro no arquivo Verilog sem quebrar a sintaxe."""
     top_file = project_path / f"{module_name}.v"
     if not top_file.exists():
         print(f"❌ Arquivo {top_file} não encontrado.")
@@ -137,9 +189,8 @@ def set_parameter_in_verilog(module_name, project_path, param_name, value):
     with open(top_file, "r") as f:
         content = f.read()
 
-    # Regex para capturar algo como: parameter N = 8 ou parameter N=16
     pattern = rf"(parameter\s+{param_name}\s*=\s*)(\d+)"
-    replacement = r"\g<1>" + str(value)  # substitui apenas o número
+    replacement = r"\g<1>" + str(value)
 
     new_content, count = re.subn(pattern, replacement, content)
 
@@ -149,10 +200,8 @@ def set_parameter_in_verilog(module_name, project_path, param_name, value):
         print(f"🔧 Parâmetro {param_name} atualizado para {value} em {top_file.name}")
         return True
     else:
-        print(f"⚠️ Parâmetro '{param_name}' não encontrado em {top_file.name} (nenhuma modificação feita)")
+        print(f"⚠️ Parâmetro '{param_name}' não encontrado em {top_file.name}")
         return False
-
-
 
 
 # ========================
@@ -160,7 +209,7 @@ def set_parameter_in_verilog(module_name, project_path, param_name, value):
 # ========================
 def compile_project(project_name, project_path):
     os.chdir(project_path)
-    print(f"\n🚀 Compilando projeto {project_name} com todos os núcleos disponíveis...")
+    print(f"\n🚀 Compilando projeto {project_name}...")
 
     success = run_cmd(
         [
