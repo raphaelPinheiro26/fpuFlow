@@ -26,7 +26,7 @@ if __name__ == "__main__":
     with open(config.DEPENDENCIES_FILE, "r") as f:
         dependencies = json.load(f)
 
-    bitwidths = [4, 6, 8, 16, 32, 64]
+    bitwidths = [4, 8, 16, 32, 64]
     compiled_projects = []
 
     # ==================================================
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     for module_name, project_path, rtl_files, sdc_files in projects_info:
         print(f"\n🔧 Preparando módulo: {module_name}")
 
-        compile.generate_qsf(project_path, module_name, rtl_files, sdc_files)
+        compile.generate_optimized_qsf(project_path, module_name, rtl_files, sdc_files)
         compile.create_qpf(project_path, module_name)
 
         top_file = project_path / f"{module_name}.v"

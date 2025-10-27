@@ -162,7 +162,7 @@ def write_consolidated_report(all_data):
     ]
 
     with open(csv_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter="\t")
+        writer = csv.writer(f)  # REMOVIDO: delimiter="\t" - Agora usa vírgula padrão
         writer.writerow(header)
 
         for data in all_data:

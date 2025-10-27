@@ -3,8 +3,7 @@
 // - aceita N qualquer; último bloco pode ter largura < K
 // =====================================================
 module hierarchical_cla #(
-    parameter  N = 32,
-    parameter  K = 4
+    parameter N = 8
 )(
     input  wire CLOCK_50,
     input  wire [N-1:0] A,
@@ -13,6 +12,7 @@ module hierarchical_cla #(
     output wire [N-1:0] S,
     output wire         Cout
 );
+    localparam  K = 4;
     // número de blocos (ceil)
     localparam  NB = (N + K - 1) / K;
 

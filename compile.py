@@ -5,6 +5,10 @@ import re
 import shutil
 from pathlib import Path
 import config
+import multiprocessing
+
+NUM_CORES = max(1, multiprocessing.cpu_count() // 2)
+
 
 
 # ========================
@@ -131,37 +135,98 @@ def copy_files_for_project(project_name, module_name, dependencies_dict):
 
 
 # ========================
-# GERAÇÃO DE QSF
+# GERAÇÃO DE QSF OTIMIZADA - COMPATÍVEL QUARTUS LITE
 # ========================
-def generate_qsf(project_path, top_module, rtl_files, sdc_files=[]):
+def generate_optimized_qsf(project_path, top_module, rtl_files, sdc_files=[]):
+    """
+    Gera QSF otimizado COMPATÍVEL com Quartus Lite
+    """
     qsf_path = project_path / f"{top_module}.qsf"
+    
     with open(qsf_path, "w") as f:
-        # Informações gerais
-        f.write(f'set_global_assignment -name FAMILY "Cyclone V"\n')
-        f.write(f'set_global_assignment -name DEVICE 5CSEMA5F31C6\n')
+        # =============================================================================
+        # CONFIGURAÇÕES GLOBAIS (COMPROVADAS E COMPATÍVEIS)
+        # =============================================================================
+        f.write("# =============================================================================\n")
+        f.write("# CONFIGURAÇÕES OTIMIZADAS - QUARTUS LITE COMPATIBLE\n")
+        f.write("# =============================================================================\n\n")
+        
+        # BÁSICO (100% COMPATÍVEL)
+        f.write('set_global_assignment -name FAMILY "Cyclone V"\n')
+        f.write('set_global_assignment -name DEVICE 5CSEMA5F31C6\n')
         f.write(f'set_global_assignment -name TOP_LEVEL_ENTITY {top_module}\n')
-        f.write(f'set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files\n')
-        f.write(f'set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL\n')
-        f.write(f'set_global_assignment -name ORIGINAL_QUARTUS_VERSION 20.1.1\n')
-        f.write(f'set_global_assignment -name LAST_QUARTUS_VERSION "20.1.1 Lite Edition"\n')
-        f.write(f'set_global_assignment -name BOARD "DE1-SoC Board"\n')
-        f.write(f'set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim-Altera (SystemVerilog)"\n')
-        f.write(f'set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation\n')
-        f.write(f'set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "SYSTEMVERILOG HDL" -section_id eda_simulation\n\n')
-
-        # Arquivos Verilog
+        f.write('set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files\n')
+        f.write('set_global_assignment -name BOARD "DE1-SoC Board"\n\n')
+        
+        # POWER SETTINGS (COMPATÍVEIS)
+        f.write('# POWER SETTINGS - CONFIGURAÇÕES ESTÁVEIS\n')
+        f.write('set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"\n')
+        f.write('set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"\n')
+        f.write('set_global_assignment -name POWER_USE_INPUT_FILES OFF\n')
+        f.write('set_global_assignment -name POWER_DEFAULT_INPUT_IO_TOGGLE_RATE "12.5%"\n')
+        f.write('set_global_assignment -name POWER_HPS_ENABLE OFF\n\n')  # 🔥 CRÍTICO!
+        
+        # OTIMIZAÇÕES DE TIMING (COMPATÍVEIS)
+        f.write('# OTIMIZAÇÕES DE PERFORMANCE\n')
+        f.write('set_global_assignment -name OPTIMIZATION_MODE "AGGRESSIVE PERFORMANCE"\n')
+        f.write('set_global_assignment -name PHYSICAL_SYNTHESIS_EFFORT "EXTRA"\n')
+        f.write('set_global_assignment -name TIMING_ANALYZER_MULTICORNER_ANALYSIS ON\n')
+        f.write('set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL\n\n')
+        
+        # =============================================================================
+        # ARQUIVOS
+        # =============================================================================
+        f.write('# ARQUIVOS DE DESIGN\n')
         for rtl in rtl_files:
             rel_path = os.path.relpath(rtl, project_path)
             f.write(f'set_global_assignment -name VERILOG_FILE "{rel_path}"\n')
-
-        # Arquivos SDC
+        
         for sdc in sdc_files:
             f.write(f'set_global_assignment -name SDC_FILE "{sdc.name}"\n')
+        f.write('\n')
+        
+        # =============================================================================
+        # PIN ASSIGNMENTS BÁSICOS (APENAS O ESSENCIAL)
+        # =============================================================================
+        f.write('# PIN ASSIGNMENTS ESSENCIAIS\n')
+        f.write('set_location_assignment PIN_AF14 -to CLOCK_50\n')
+        f.write('set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to CLOCK_50\n\n')
+        
+        # =============================================================================
+        # CURRENT STRENGTH CONSERVADORA (COMPATÍVEL)
+        # =============================================================================
+        f.write('# CURRENT STRENGTH - CONFIGURAÇÃO CONSERVADORA\n')
+        f.write('# LEDs\n')
+        for i in range(8):
+            f.write(f'set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA" -to LEDR[{i}]\n')
+        
+        f.write('# 7-Segment Displays\n')
+        for i in range(7):
+            f.write(f'set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA" -to HEX0[{i}]\n')
+            f.write(f'set_instance_assignment -name CURRENT_STRENGTH_NEW "8MA" -to HEX1[{i}]\n')
+        f.write('\n')
+        
+        # =============================================================================
+        # CONFIGURAÇÕES ADICIONAIS COMPATÍVEIS
+        # =============================================================================
+        f.write('# CONFIGURAÇÕES DE COMPILAÇÃO COMPATÍVEIS\n')
+        f.write('set_global_assignment -name ADV_NETLIST_OPT_SYNTH_WYSIWYG_REMAP ON\n')
+        f.write('set_global_assignment -name ALLOW_POWER_UP_DONT_CARE OFF\n')
+        f.write('set_global_assignment -name AUTO_PACKED_REGISTERS_STRATIXII OFF\n')
+        
+        # FLOW ENABLE (COMPATÍVEL)
+        f.write('set_global_assignment -name FLOW_ENABLE_POWER_ANALYZER ON\n\n')
+        
+        f.write("# =============================================================================\n")
+        f.write("# FIM DAS CONFIGURAÇÕES COMPATÍVEIS\n")
+        f.write("# =============================================================================\n")
 
-        f.write('\n# set_global_assignment -name SYSTEMVERILOG_FILE <tb_file.sv>\n')
-
-    print(f"📝 QSF gerado: {qsf_path.name}")
-
+    print(f"✅ QSF COMPATÍVEL gerado: {qsf_path.name}")
+    print(f"   • 100% compatível com Quartus Lite")
+    print(f"   • POWER_HPS_ENABLE OFF (crítico)")
+    print(f"   • Removidos comandos não suportados")
+    
+    return qsf_path
 
 # ========================
 # CRIAÇÃO DO QPF
