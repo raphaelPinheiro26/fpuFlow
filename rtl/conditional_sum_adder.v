@@ -39,14 +39,14 @@ module conditional_sum_adder #(
             // =====================================================
             // Duas versões: uma assumindo carry_in=0 e outra =1
             // =====================================================
-            hierarchical_cla #(.N(SIZE), .K(K)) cla0 (
+            hierarchical_cla #(.N(SIZE)) cla0 (
                 .A(A_blk), .B(B_blk),
                 .Cin(1'b0),
                 .S(sum0[END-1:START]),
                 .Cout(cout0[i])
             );
 
-            hierarchical_cla #(.N(SIZE), .K(K)) cla1 (
+            hierarchical_cla #(.N(SIZE)) cla1 (
                 .A(A_blk), .B(B_blk),
                 .Cin(1'b1),
                 .S(sum1[END-1:START]),
