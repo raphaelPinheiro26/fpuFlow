@@ -1,5 +1,4 @@
 module half_adder (
-    input  wire CLOCK_50,
     input  wire A,
     input  wire B,
     output wire S,

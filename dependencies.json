@@ -1,5 +1,7 @@
 {
  
-  "conditional_sum_adder": ["hierarchical_cla"]
+  "half_adder": [],
+  "full_adder": ["half_adder"],
+  "rca": ["full_adder"]
 
 }
