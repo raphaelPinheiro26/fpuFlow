@@ -3,8 +3,7 @@
     "01_adders": {
       "half_adder": [],
       "full_adder": ["half_adder"],
-      "rca": ["full_adder"],
-      "conditional_sum_adder": ["hierarchical_cla"]
+      "rca":["full_adder"]
     },
     "02_multipliers": {
     },

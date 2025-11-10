@@ -1,5 +1,5 @@
 module full_adder (
-
+	input wire CLOCK_50,
 	input wire A,
 	input wire B,
 	input wire Cin,

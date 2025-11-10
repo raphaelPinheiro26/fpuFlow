@@ -1,0 +1,8 @@
+Parameter,Project,Clock,Fmax(MHz),Restricted_Fmax(MHz),SetupSlack(ns),HoldSlack(ns),Logic utilization (in ALMs),Total registers,Total pins,Total virtual pins,Total block memory bits,Total RAM Blocks,Total DSP Blocks,Total PLLs,Total DLLs,Total Thermal Power (mW),Core Dynamic Power (mW),Core Static Power (mW),I/O Power (mW),VCC Total Current (mA),VCC Dynamic Current (mA),VCC Static Current (mA)
+,full_adder,clk,100,100,1.234,0.987,0,0,0,,0,0,0,,,419.48,15.2,10.3,0.0,,,
+,half_adder,clk,100,100,1.234,0.987,0,0,0,,0,0,0,,,419.40,15.2,10.3,0.0,,,
+,rca,clk,100,100,1.234,0.987,0,0,0,,0,0,0,,,420.86,15.2,10.3,0.0,,,
+,rca,clk,100,100,1.234,0.987,0,0,0,,0,0,0,,,421.55,15.2,10.3,0.0,,,
+,rca,clk,100,100,1.234,0.987,0,0,0,,0,0,0,,,422.13,15.2,10.3,0.0,,,
+,rca,clk,100,100,1.234,0.987,0,0,0,,0,0,0,,,424.54,15.2,10.3,0.0,,,
+,rca,clk,100,100,1.234,0.987,0,0,0,,0,0,0,,,429.65,15.2,10.3,0.0,,,

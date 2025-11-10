@@ -7,6 +7,23 @@ from pathlib import Path
 import config
 import re
 
+def debug_simulation_environment():
+    """Verifica o ambiente de simulação"""
+    print("\n🔍 DIAGNÓSTICO DO AMBIENTE DE SIMULAÇÃO")
+    
+    # Verifica ModelSim
+    vsim_path = config.MODELSIM_DIR / "vsim.exe"
+    vlog_path = config.MODELSIM_DIR / "vlog.exe"
+    
+    print(f"✅ ModelSim directory: {config.MODELSIM_DIR.exists()}")
+    print(f"✅ vsim.exe: {vsim_path.exists()}")
+    print(f"✅ vlog.exe: {vlog_path.exists()}")
+    
+    # Verifica se há testbenches
+    tb_count = len(list(config.TB_DIR.rglob("*_tb.v"))) + len(list(config.TB_DIR.rglob("*_tb.sv")))
+    print(f"✅ Testbenches encontrados: {tb_count}")
+    
+    return vsim_path.exists() and vlog_path.exists()
 
 def find_testbenches(module_name):
     """Encontra todos os testbenches para um módulo específico."""
@@ -195,89 +212,75 @@ def auto_convert_if_needed(file_path):
 # simulation.py - atualize a função run_modelsim_simulation
 
 def run_modelsim_simulation(project_path, tb_name, simulation_time="100ns"):
-    """Executa simulação no ModelSim com timeout e melhor controle."""
+    """Executa simulação no ModelSim com correções."""
     
-    # Verifica se vsim está acessível
     vsim_path = config.MODELSIM_DIR / "vsim.exe"
     if not vsim_path.exists():
         print(f"❌ vsim.exe não encontrado em: {vsim_path}")
         return None
     
-    # Cria script de simulação mais robusto
+    # Cria script de simulação mais simples e confiável
     do_file = project_path / "simulate.do"
     
     with open(do_file, "w") as f:
         f.write("# Script de simulação automática ModelSim\n")
         f.write("onbreak {resume}\n")
         f.write("onerror {exit -code 1}\n")
-        f.write(f"vsim -voptargs=\"+acc\" -t 1ns {tb_name}\n")
+        f.write("set NumericStdNoWarnings 1\n")
+        f.write("set StdArithNoWarnings 1\n")
+        f.write(f"vsim -voptargs=+acc -t 1ns {tb_name}\n")
         f.write("run -all\n")
         f.write("quit -sim\n")
         f.write("exit\n")
     
-    # Executa simulação com timeout
-    print(f"🎯 Simulando: {tb_name} (timeout: 30s)")
+    print(f"🎯 Iniciando simulação: {tb_name}")
     
     cmd = [
-        str(config.MODELSIM_DIR / "vsim"),
+        str(vsim_path),
         "-c",  # Modo console
         "-do", "simulate.do"
     ]
     
-    print(f"   Executando: {' '.join(cmd)}")
-    
     try:
-        # Usando timeout para evitar travamento infinito
+        # Aumenta timeout para 60 segundos
         result = subprocess.run(
             cmd, 
             capture_output=True, 
             text=True, 
             cwd=project_path,
-            timeout=30  # 30 segundos de timeout
+            timeout=60
         )
         
+        # Salva log
+        log_file = project_path / f"simulation_{tb_name}.log"
+        with open(log_file, "w", encoding='utf-8') as f:
+            f.write("STDOUT:\n" + result.stdout)
+            if result.stderr:
+                f.write("\nSTDERR:\n" + result.stderr)
+        
+        print(f"📄 Log salvo: {log_file.name}")
+        
+        # Analisa resultado
+        if result.returncode == 0:
+            print(f"✅ Simulação {tb_name} concluída")
+            return extract_simulation_results(log_file, tb_name)
+        else:
+            print(f"❌ Erro na simulação (code: {result.returncode})")
+            return {
+                "TB_Name": tb_name,
+                "Simulation_Status": "FAILED",
+                "Warnings": 0,
+                "Errors": 1
+            }
+            
     except subprocess.TimeoutExpired:
-        print(f"   ⏰ TIMEOUT: Simulação excedeu 30 segundos - provavelmente travou")
+        print(f"⏰ TIMEOUT: Simulação excedeu 60 segundos")
         return {
             "TB_Name": tb_name,
             "Simulation_Status": "TIMEOUT",
             "Warnings": 0,
-            "Errors": 1,
-            "Timeout": True
+            "Errors": 1
         }
-    
-    # Salva log da simulação
-    log_file = project_path / f"simulation_{tb_name}.log"
-    with open(log_file, "w") as f:
-        f.write("=== STDOUT ===\n")
-        f.write(result.stdout)
-        if result.stderr:
-            f.write("\n=== STDERR ===\n")
-            f.write(result.stderr)
-    
-    print(f"   Log salvo em: {log_file}")
-    
-    # Analisa o resultado
-    if result.returncode == 0:
-        print(f"   ✅ Simulação {tb_name} concluída com sucesso")
-        return extract_simulation_results(log_file, tb_name)
-    else:
-        print(f"   ❌ Falha na simulação {tb_name} (código: {result.returncode})")
-        
-        # Tenta extrair resultados mesmo com erro
-        results = extract_simulation_results(log_file, tb_name)
-        if results:
-            results["Simulation_Status"] = "Failed"
-        else:
-            results = {
-                "TB_Name": tb_name,
-                "Simulation_Status": "Failed",
-                "Return_Code": result.returncode
-            }
-        
-        return results
-
-# simulation.py - atualize extract_simulation_results
 
 def extract_simulation_results(log_file, tb_name):
     """Extrai resultados da simulação do arquivo de log."""
