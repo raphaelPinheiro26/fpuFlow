@@ -1,3 +1,8 @@
 Parameter,Project,Clock,Fmax(MHz),Restricted_Fmax(MHz),SetupSlack(ns),HoldSlack(ns),Logic utilization (in ALMs),Total registers,Total pins,Total virtual pins,Total block memory bits,Total RAM Blocks,Total DSP Blocks,Total PLLs,Total DLLs,Total Thermal Power (mW),Core Dynamic Power (mW),Core Static Power (mW),I/O Power (mW),VCC Total Current (mA),VCC Dynamic Current (mA),VCC Static Current (mA)
 ,full_adder,CLOCK_50,50.0,50.0,6.677,6.677,2,0,6,0,0,0,0,0,0,419.87,0.00,411.22,8.64,49.25,0.05,49.20
 ,half_adder,CLOCK_50,50.0,50.0,10.848,10.848,2,0,5,0,0,0,0,0,0,420.25,0.00,411.23,9.02,49.21,0.05,49.16
+4,rca,CLOCK_50,50.0,50.0,7.469,7.469,4,0,15,0,0,0,0,0,0,420.86,0.00,411.23,9.63,49.71,0.05,49.66
+8,rca,CLOCK_50,50.0,50.0,6.609,6.609,9,0,27,0,0,0,0,0,0,421.55,0.00,411.23,10.32,50.28,0.05,50.23
+16,rca,CLOCK_50,50.0,50.0,4.333,4.333,20,0,51,0,0,0,0,0,0,422.13,0.00,411.24,10.89,51.08,0.05,51.03
+32,rca,CLOCK_50,50.0,50.0,2.907,2.907,42,0,99,0,0,0,0,0,0,424.54,0.00,411.25,13.29,53.03,0.05,52.98
+64,rca,CLOCK_50,50.0,50.0,8.943,8.943,84,0,195,0,0,0,0,0,0,429.65,0.00,411.28,18.37,57.19,0.05,57.14

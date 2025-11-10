@@ -2,9 +2,9 @@
            RELATÓRIO EXECUTIVO DE SIMULAÇÃO
 ============================================================
 
-Total de simulações executadas: 2
+Total de simulações executadas: 7
 Simulações com sucesso total: 0
-Simulações com falhas: 1
+Simulações com falhas: 6
 Simulações com warnings: 0
 Taxa de sucesso geral: 0.0%
 
@@ -17,3 +17,10 @@ DETALHES POR PROJETO:
 
 [PROJETO] half_adder:
    [FAIL] half_adder_tb (N=default): 0/0 passed (0.00%)
+
+[PROJETO] rca:
+   [FAIL] rca_tb (N=4): 0/0 passed (0.00%)
+   [FAIL] rca_tb (N=8): 0/0 passed (0.00%)
+   [FAIL] rca_tb (N=16): 0/0 passed (0.00%)
+   [FAIL] rca_tb (N=32): 0/0 passed (0.00%)
+   [FAIL] rca_tb (N=64): 0/0 passed (0.00%)

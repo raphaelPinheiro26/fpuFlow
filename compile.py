@@ -437,3 +437,37 @@ def compile_project(project_name: str, project_path: Path) -> bool:
     )
     
     return True
+
+# compile.py (adição desta função)
+def compile_project_with_n(project_name: str, project_path: Path, N: int) -> bool:
+    """Executa compilação completa no Quartus para projeto com parâmetro N."""
+    os.chdir(project_path)
+    print(f"\n🚀 Compilando projeto {project_name} com N={N}...")
+
+    # Gera QSF específico para este N
+    rtl_files = list(project_path.glob("*.v"))
+    sdc_files = list(project_path.glob("*.sdc"))
+    generate_optimized_qsf(project_path, project_name, rtl_files, sdc_files)
+    create_qpf(project_path, project_name)
+
+    # Compilação principal
+    success = run_cmd(
+        [
+            f"{config.QUARTUS_BIN}\\quartus_sh",
+            "--flow", "compile",
+            project_name
+        ],
+        logfile=project_path / f"quartus_compile_N{N}.log"
+    )
+    
+    if not success:
+        return False
+
+    # Análise de potência
+    print(f"\n⚡ Executando análise de potência para N={N}...")
+    run_cmd(
+        [f"{config.QUARTUS_BIN}\\quartus_pow", project_name],
+        logfile=project_path / f"quartus_power_N{N}.log"
+    )
+    
+    return True

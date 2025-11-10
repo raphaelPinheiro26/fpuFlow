@@ -39,8 +39,8 @@ def collect_reports_from_projects(compiled_projects: List[CompiledProject]) -> L
         if not wait_for_power_report(module_name, out_dir, N):
             continue
         
-        # Extrai dados
-        data = report.extract_data_from_reports(module_name, project_path, out_dir)
+        # Extrai dados - agora a função sabe buscar na estrutura correta
+        data = report.extract_data_from_reports(module_name, project_path, out_dir, N)
         if data:
             data["N"] = N
             if sim_results:

@@ -17,6 +17,7 @@ import project_loader
 import project_processor
 import report_generator
 
+# main.py (apenas a parte do loop principal)
 def main():
     """Fluxo principal de execução."""
     print("🚀 Build automatizado + simulação + relatório completo")
@@ -59,15 +60,17 @@ def main():
         has_N = project_processor.check_has_parameter_n(project_path, module_name)
         
         if has_N:
-            # Projeto com parâmetro N - múltiplas compilações
+            # Projeto com parâmetro N - múltiplas compilações com organização
             projects = project_processor.compile_parametrized_project(
-                project_info, bitwidths, run_simulations
+                (module_name, project_path, rtl_files, sdc_files, copied_tbs), 
+                bitwidths, run_simulations
             )
             compiled_projects.extend(projects)
         else:
             # Projeto único - uma compilação
             project = project_processor.compile_single_project(
-                project_info, run_simulations
+                (module_name, project_path, rtl_files, sdc_files, copied_tbs), 
+                run_simulations
             )
             if project:
                 compiled_projects.append(project)

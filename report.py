@@ -1,12 +1,6 @@
 # report.py
 """
 GERAÇÃO DE RELATÓRIOS E ANÁLISE DE DADOS
-
-Responsável por:
-- Extração de dados de relatórios Quartus
-- Geração de relatórios consolidados
-- Relatórios de simulação
-- Processamento e limpeza de dados
 """
 
 import re
@@ -48,10 +42,17 @@ def clean_resource_value(value: str) -> str:
 # =============================================================================
 
 def extract_data_from_reports(project_name: str, project_path: Path, 
-                            out_dir: Optional[Path] = None) -> Optional[ReportData]:
+                            out_dir: Optional[Path] = None, N: Any = "default") -> Optional[ReportData]:
     """Extrai dados de relatórios Quartus para um projeto."""
+    
+    # Se out_dir não foi especificado, busca na estrutura correta
     if out_dir is None:
-        out_dir = project_path / "output_files"
+        if N != "default" and N is not None:
+            # Para projetos com N, busca em N_variants/N{valor}/output_files
+            out_dir = project_path / "N_variants" / f"N{N}" / "output_files"
+        else:
+            # Para projetos sem N, busca em output_files normal
+            out_dir = project_path / "output_files"
 
     if not out_dir.exists():
         print(f"⚠️ Diretório de relatórios não encontrado: {out_dir}")
@@ -62,16 +63,15 @@ def extract_data_from_reports(project_name: str, project_path: Path,
     data = {
         "Project": project_name, 
         "Top": project_name,
-        "Parameter": ""
+        "Parameter": str(N) if N != "default" else ""
     }
     
     # Extrai dados de cada tipo de relatório
     _extract_resource_data(data, project_name, out_dir)
     _extract_power_data(data, project_name, out_dir)
     _extract_timing_data(data, project_name, out_dir)
-    _extract_parameter_data(data, project_name, out_dir)
     
-    print(f"✅ Dados extraídos: {len(data)} campos")
+    print(f"✅ Dados extraídos para {project_name} N={N}: {len(data)} campos")
     return data
 
 def _extract_resource_data(data: ReportData, project_name: str, out_dir: Path):
@@ -299,12 +299,6 @@ def _apply_timing_fallback(data: ReportData):
     }]
     data["SetupSlack"] = {"CLOCK_50": "8.535"}
     data["HoldSlack"] = {"CLOCK_50": "6.028"}
-
-def _extract_parameter_data(data: ReportData, project_name: str, out_dir: Path):
-    """Extrai parâmetros do design."""
-    # Para projetos sem parâmetro N, mantém vazio
-    # Esta função pode ser expandida para buscar parâmetros específicos se necessário
-    data["Parameter"] = ""
 
 # =============================================================================
 # PROCESSAMENTO DE DADOS DE SIMULAÇÃO
