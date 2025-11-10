@@ -1,9 +1,7 @@
 {
   "01_integer_arithmetic": {
     "01_adders": {
-      "half_adder": [],
-      "full_adder": ["half_adder"],
-      "rca":["full_adder"]
+      "half_adder": []
     },
     "02_multipliers": {
     },
