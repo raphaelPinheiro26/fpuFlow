@@ -1,7 +1,6 @@
 {
  
   "half_adder": [],
-  "full_adder": ["half_adder"],
-  "rca": ["full_adder"]
+  "full_adder": ["half_adder"]
 
 }

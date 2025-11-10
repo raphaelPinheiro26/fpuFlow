@@ -1,6 +1,26 @@
+# report.py
 import re
 import csv
 import config
+
+# ========================
+# FUNÇÕES AUXILIARES
+# ========================
+def clean_resource_value(value):
+    """Remove conteúdo após '/' e limpa valores de recursos."""
+    if value == "-" or not value:
+        return value
+    
+    # Remove conteúdo após '/' e espaços extras
+    cleaned = value.split('/')[0].strip()
+    
+    # Remove parênteses e conteúdo dentro
+    cleaned = re.sub(r'\([^)]*\)', '', cleaned).strip()
+    
+    # Remove porcentagens e outros suffixes
+    cleaned = re.sub(r'[\s%]+$', '', cleaned)
+    
+    return cleaned
 
 # ========================
 # PARSER DE RELATÓRIOS COMPLETO
@@ -82,7 +102,7 @@ def extract_data_from_reports(project_name, project_path, out_dir=None):
     data["HoldSlack"] = hold
 
     # ========================
-    # Utilização de recursos
+    # Utilização de recursos (LIMPO)
     # ========================
     fit_text = read(fit)
     patterns = {
@@ -98,7 +118,10 @@ def extract_data_from_reports(project_name, project_path, out_dir=None):
     }
     for k, ptn in patterns.items():
         m = re.search(ptn, fit_text)
-        data[k] = m.group(1).strip() if m else "-"
+        if m:
+            data[k] = clean_resource_value(m.group(1).strip())
+        else:
+            data[k] = "-"
 
     # ========================
     # Potência total e parciais (mW)
@@ -141,6 +164,162 @@ def extract_data_from_reports(project_name, project_path, out_dir=None):
 
     return data
 
+# ========================
+# RELATÓRIOS DE SIMULAÇÃO
+# ========================
+def extract_simulation_summary(all_data):
+    """Extrai resumo das simulações para relatório separado."""
+    simulation_data = []
+    
+    for data in all_data:
+        project = data.get("Project", "")
+        N = data.get("N", "")
+        sim_results = data.get("Simulation_Results", [])
+        
+        for sim_result in sim_results:
+            tb_name = sim_result.get("TB_Name", "")
+            
+            sim_row = {
+                "Project": project,
+                "N": N,
+                "Testbench": tb_name,
+                "Total_Tests": sim_result.get("Total_Tests", 0),
+                "Tests_Passed": sim_result.get("Tests_Passed", 0),
+                "Tests_Failed": sim_result.get("Tests_Failed", 0),
+                "Success_Rate": sim_result.get("Success_Rate", 0),
+                "Simulation_Status": sim_result.get("Simulation_Status", "Unknown"),
+                "Warnings": sim_result.get("Warnings", 0),
+                "Errors": sim_result.get("Errors", 0),
+                "Simulation_Time": sim_result.get("Simulation_Time", ""),
+                "Simulation_Directory": sim_result.get("Simulation_Directory", "")
+            }
+            simulation_data.append(sim_row)
+    
+    return simulation_data
+
+def write_simulation_report(all_data):
+    """Gera relatório consolidado apenas com dados de simulação."""
+    config.REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    csv_file = config.REPORT_DIR / "simulation_report.csv"
+    print(f"\n🎯 Gerando relatório de simulação: {csv_file}")
+    
+    simulation_data = extract_simulation_summary(all_data)
+    
+    if not simulation_data:
+        print("ℹ️ Nenhum dado de simulação encontrado para gerar relatório")
+        return
+    
+    header = [
+        "Project", "N", "Testbench", "Total_Tests", "Tests_Passed", 
+        "Tests_Failed", "Success_Rate_%", "Status", "Warnings", 
+        "Errors", "Simulation_Time", "Simulation_Directory"
+    ]
+    
+    # 🔥 CORREÇÃO: Usar encoding UTF-8
+    with open(csv_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        
+        for sim_row in simulation_data:
+            row = [
+                sim_row["Project"],
+                sim_row["N"],
+                sim_row["Testbench"],
+                sim_row["Total_Tests"],
+                sim_row["Tests_Passed"],
+                sim_row["Tests_Failed"],
+                f"{sim_row['Success_Rate']:.2f}" if sim_row['Success_Rate'] else "0.00",
+                sim_row["Simulation_Status"],
+                sim_row["Warnings"],
+                sim_row["Errors"],
+                sim_row["Simulation_Time"],
+                sim_row["Simulation_Directory"]
+            ]
+            writer.writerow(row)
+    
+    print(f"✅ Relatório de simulação salvo em: {csv_file}")
+    
+    # Gera também um resumo executivo
+    write_simulation_executive_summary(simulation_data)
+    
+    # Gera relatório de falhas se houver
+    write_detailed_simulation_failures(simulation_data)
+
+def write_simulation_executive_summary(simulation_data):
+    """Gera um resumo executivo das simulações."""
+    summary_file = config.REPORT_DIR / "simulation_executive_summary.txt"
+    
+    total_simulations = len(simulation_data)
+    passed_simulations = sum(1 for s in simulation_data if s["Simulation_Status"] in ["ALL_PASSED", "Success"])
+    failed_simulations = sum(1 for s in simulation_data if s["Simulation_Status"] in ["SOME_FAILED", "Failed", "TIMEOUT"])
+    warning_simulations = sum(1 for s in simulation_data if s["Warnings"] > 0)
+    
+    # 🔥 CORREÇÃO: Usar encoding UTF-8 explicitamente
+    with open(summary_file, "w", encoding="utf-8") as f:
+        f.write("=" * 60 + "\n")
+        f.write("           RELATÓRIO EXECUTIVO DE SIMULAÇÃO\n")
+        f.write("=" * 60 + "\n\n")
+        
+        f.write(f"Total de simulações executadas: {total_simulations}\n")
+        f.write(f"Simulações com sucesso total: {passed_simulations}\n")
+        f.write(f"Simulações com falhas: {failed_simulations}\n")
+        f.write(f"Simulações com warnings: {warning_simulations}\n")
+        f.write(f"Taxa de sucesso geral: {(passed_simulations/total_simulations*100 if total_simulations > 0 else 0):.1f}%\n\n")
+        
+        f.write("-" * 60 + "\n")
+        f.write("DETALHES POR PROJETO:\n")
+        f.write("-" * 60 + "\n")
+        
+        # Agrupa por projeto
+        projects = {}
+        for sim in simulation_data:
+            project = sim["Project"]
+            if project not in projects:
+                projects[project] = []
+            projects[project].append(sim)
+        
+        for project, sims in projects.items():
+            # 🔥 CORREÇÃO: Substituir emojis por texto simples
+            f.write(f"\n[PROJETO] {project}:\n")
+            for sim in sims:
+                status_icon = "[PASS]" if sim["Simulation_Status"] in ["ALL_PASSED", "Success"] else "[FAIL]"
+                f.write(f"   {status_icon} {sim['Testbench']} (N={sim['N']}): ")
+                f.write(f"{sim['Tests_Passed']}/{sim['Total_Tests']} passed ")
+                f.write(f"({sim['Success_Rate']:.2f}%)\n")
+    
+    print(f"📊 Resumo executivo salvo em: {summary_file}")
+
+def write_detailed_simulation_failures(simulation_data):
+    """Gera relatório detalhado das falhas de simulação."""
+    failed_simulations = [s for s in simulation_data if s["Tests_Failed"] > 0]
+    
+    if not failed_simulations:
+        return
+    
+    failure_file = config.REPORT_DIR / "simulation_failures_detailed.csv"
+    
+    header = [
+        "Project", "N", "Testbench", "Failed_Tests", 
+        "Total_Tests", "Failure_Rate_%", "Error_Count"
+    ]
+    
+    with open(failure_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        
+        for sim in failed_simulations:
+            row = [
+                sim["Project"],
+                sim["N"],
+                sim["Testbench"],
+                sim["Tests_Failed"],
+                sim["Total_Tests"],
+                f"{(sim['Tests_Failed']/sim['Total_Tests']*100):.2f}",
+                sim["Errors"]
+            ]
+            writer.writerow(row)
+    
+    print(f"🔍 Relatório de falhas detalhado salvo em: {failure_file}")
 
 # ========================
 # RELATÓRIO CONSOLIDADO (CSV)
@@ -161,14 +340,14 @@ def write_consolidated_report(all_data):
         "VCC Total Current (mA)", "VCC Dynamic Current (mA)", "VCC Static Current (mA)"
     ]
 
+    # 🔥 CORREÇÃO: Usar encoding UTF-8
     with open(csv_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)  # REMOVIDO: delimiter="\t" - Agora usa vírgula padrão
+        writer = csv.writer(f)
         writer.writerow(header)
 
         for data in all_data:
             power = data.get("Power", {"Total": "", "Dynamic": "", "Static": "", "IO": ""})
             vcc_data = data.get("VCCs", {})
-            # 🔹 usa VCC principal ou VCCINT
             vcc = vcc_data.get("VCC", vcc_data.get("VCCINT", {"Total": "", "Dynamic": "", "Static": ""}))
 
             for clk in data.get("Clocks", []):
@@ -181,15 +360,15 @@ def write_consolidated_report(all_data):
                     clk.get("Restricted_Fmax", ""),
                     data.get("SetupSlack", {}).get(clk_name, ""),
                     data.get("HoldSlack", {}).get(clk_name, ""),
-                    data.get("Logic utilization (in ALMs)", ""),
-                    data.get("Total registers", ""),
-                    data.get("Total pins", ""),
-                    data.get("Total virtual pins", ""),
-                    data.get("Total block memory bits", ""),
-                    data.get("Total RAM Blocks", ""),
-                    data.get("Total DSP Blocks", ""),
-                    data.get("Total PLLs", ""),
-                    data.get("Total DLLs", ""),
+                    clean_resource_value(data.get("Logic utilization (in ALMs)", "")),
+                    clean_resource_value(data.get("Total registers", "")),
+                    clean_resource_value(data.get("Total pins", "")),
+                    clean_resource_value(data.get("Total virtual pins", "")),
+                    clean_resource_value(data.get("Total block memory bits", "")),
+                    clean_resource_value(data.get("Total RAM Blocks", "")),
+                    clean_resource_value(data.get("Total DSP Blocks", "")),
+                    clean_resource_value(data.get("Total PLLs", "")),
+                    clean_resource_value(data.get("Total DLLs", "")),
                     power.get("Total", ""),
                     power.get("Dynamic", ""),
                     power.get("Static", ""),
@@ -201,3 +380,6 @@ def write_consolidated_report(all_data):
                 writer.writerow(row)
 
     print(f"✅ Relatório consolidado salvo em: {csv_file}")
+    
+    # GERA OS RELATÓRIOS DE SIMULAÇÃO TAMBÉM
+    write_simulation_report(all_data)
