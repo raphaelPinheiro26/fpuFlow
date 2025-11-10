@@ -1,6 +1,66 @@
 {
- 
-  "half_adder": [],
-  "full_adder": ["half_adder"]
-
+  "01_integer_arithmetic": {
+    "01_adders": {
+      "half_adder": [],
+      "full_adder": ["half_adder"],
+      "rca": ["full_adder"],
+      "conditional_sum_adder": ["hierarchical_cla"]
+    },
+    "02_multipliers": {
+    },
+    "03_dividers": {
+    }
+  },
+  "02_primitive_units": {
+    "01_lzc": {
+    },
+    "02_barrel_shifters": {
+    },
+    "03_priority_encoders": {
+    },
+    "04_compressors": {
+    }
+  },
+  "03_common_modules": {
+    "01_unpack": {
+    },
+    "02_normalize": {
+    },
+    "03_round": {
+    },
+    "04_pack": {
+    }
+  },
+  "04_specific_operations": {
+    "01_mantissa_align": {
+    },
+    "02_mantissa_add_sub": {
+    },
+    "03_exponent_processing": {
+    },
+    "04_special_cases": {
+    }
+  },
+  "05_fpu_operations": {
+    "01_fpu_add_sub": {
+    },
+    "02_fpu_mult": {
+    },
+    "03_fpu_div": {
+    },
+    "04_fpu_sqrt": {
+    },
+    "05_fpu_compare": {
+    },
+    "06_fpu_convert": {
+    }
+  },
+  "06_fpu_core": {
+    "01_fpu_pipeline": {
+    },
+    "02_fpu_controller": {
+    },
+    "03_fpu_unit": {
+    }
+  }
 }
