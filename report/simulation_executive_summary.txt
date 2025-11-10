@@ -1,0 +1,19 @@
+============================================================
+           RELATÓRIO EXECUTIVO DE SIMULAÇÃO
+============================================================
+
+Total de simulações executadas: 2
+Simulações com sucesso total: 0
+Simulações com falhas: 1
+Simulações com warnings: 0
+Taxa de sucesso geral: 0.0%
+
+------------------------------------------------------------
+DETALHES POR PROJETO:
+------------------------------------------------------------
+
+[PROJETO] full_adder:
+   [FAIL] full_adder_tb (N=default): 0/0 passed (0.00%)
+
+[PROJETO] half_adder:
+   [FAIL] half_adder_tb (N=default): 0/0 passed (0.00%)
