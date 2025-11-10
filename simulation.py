@@ -1,12 +1,6 @@
 # simulation.py
 """
 SIMULAÇÃO MODELSIM E GERENCIAMENTO DE TESTBENCHES
-
-Responsável por:
-- Compilação e execução de simulações ModelSim
-- Gerenciamento de testbenches
-- Extração e análise de resultados
-- Organização de arquivos de simulação
 """
 
 import os
@@ -24,6 +18,23 @@ import config
 # =============================================================================
 
 SimulationResult = Dict[str, any]
+
+# =============================================================================
+# CONFIGURAÇÃO DE DIRETÓRIOS DE SIMULAÇÃO
+# =============================================================================
+
+def get_simulation_directory(project_path: Path) -> Path:
+    """Retorna o diretório de simulação no padrão Quartus."""
+    return project_path / "simulation" / "modelsim"
+
+def get_modelsim_work_dir(project_path: Path) -> Path:
+    """Retorna o diretório de trabalho do ModelSim."""
+    return get_simulation_directory(project_path) / "work"
+
+def get_simulation_results_dir(project_path: Path, tb_name: str, N: any = "default") -> Path:
+    """Retorna diretório para resultados específicos de simulação."""
+    sim_dir = get_simulation_directory(project_path)
+    return sim_dir / f"{tb_name}_N{N}"
 
 # =============================================================================
 # VERIFICAÇÃO DE AMBIENTE
@@ -133,7 +144,7 @@ def get_file_extension_type(file_path: Path) -> str:
         return 'verilog'
 
 # =============================================================================
-# COMPILAÇÃO MODELSIM
+# COMPILAÇÃO MODELSIM (ATUALIZADA)
 # =============================================================================
 
 def compile_modelsim_project(project_path: Path, module_name: str, 
@@ -146,7 +157,7 @@ def compile_modelsim_project(project_path: Path, module_name: str,
         print(f"❌ vlog.exe não encontrado")
         return False
     
-    # Prepara ambiente
+    # Prepara ambiente com estrutura organizada
     _prepare_modelsim_environment(project_path)
     
     # Compila todos os arquivos
@@ -159,26 +170,33 @@ def compile_modelsim_project(project_path: Path, module_name: str,
     return compile_success
 
 def _prepare_modelsim_environment(project_path: Path):
-    """Prepara ambiente ModelSim (library work)."""
-    modelsim_work = project_path / "modelsim_work"
+    """Prepara ambiente ModelSim com estrutura organizada."""
+    modelsim_dir = get_simulation_directory(project_path)
+    work_dir = get_modelsim_work_dir(project_path)
     
-    # Limpa trabalho anterior
-    if modelsim_work.exists():
-        shutil.rmtree(modelsim_work)
-    modelsim_work.mkdir(exist_ok=True)
+    # Limpa diretório de simulação anterior
+    if modelsim_dir.exists():
+        shutil.rmtree(modelsim_dir)
     
-    # Cria library work
+    # Cria estrutura de diretórios
+    modelsim_dir.mkdir(parents=True, exist_ok=True)
+    work_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"📁 Estrutura de simulação criada: {modelsim_dir.relative_to(project_path)}")
+    
+    # Cria library work no diretório correto
     cmd_lib = [str(config.MODELSIM_DIR / "vlib"), "work"]
-    result = subprocess.run(cmd_lib, capture_output=True, text=True, cwd=project_path)
+    result = subprocess.run(cmd_lib, capture_output=True, text=True, cwd=modelsim_dir)
     
     if result.returncode == 0:
-        print("✅ Library 'work' criada")
+        print("✅ Library 'work' criada em simulation/modelsim/")
     else:
         print(f"❌ Falha ao criar library: {result.stderr}")
 
 def _compile_files(project_path: Path, files: List[Path]) -> bool:
     """Compila lista de arquivos no ModelSim."""
     vlog_path = config.MODELSIM_DIR / "vlog.exe"
+    modelsim_dir = get_simulation_directory(project_path)
     
     for file_path in files:
         if not file_path.exists():
@@ -196,7 +214,8 @@ def _compile_files(project_path: Path, files: List[Path]) -> bool:
         
         print(f"   🔄 Compilando: {file_path.name}{type_label}")
         
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=project_path)
+        # Compila no diretório de simulação
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=modelsim_dir)
         
         if result.returncode == 0:
             print(f"   ✅ {file_path.name}")
@@ -214,8 +233,10 @@ def _compile_files(project_path: Path, files: List[Path]) -> bool:
 
 def _list_compiled_modules(project_path: Path):
     """Lista módulos compilados na library work."""
+    modelsim_dir = get_simulation_directory(project_path)
     cmd_list = [str(config.MODELSIM_DIR / "vdir"), "-lib", "work"]
-    result = subprocess.run(cmd_list, capture_output=True, text=True, cwd=project_path)
+    
+    result = subprocess.run(cmd_list, capture_output=True, text=True, cwd=modelsim_dir)
     
     if result.returncode == 0 and result.stdout.strip():
         print("📋 Módulos compilados:")
@@ -224,35 +245,37 @@ def _list_compiled_modules(project_path: Path):
                 print(f"   📄 {line.strip()}")
 
 # =============================================================================
-# EXECUÇÃO DE SIMULAÇÕES
+# EXECUÇÃO DE SIMULAÇÕES (ATUALIZADA)
 # =============================================================================
 
 def run_modelsim_simulation(project_path: Path, tb_name: str, 
                           timeout: int = 60) -> Optional[SimulationResult]:
-    """Executa simulação no ModelSim."""
+    """Executa simulação no ModelSim com estrutura organizada."""
     vsim_path = config.MODELSIM_DIR / "vsim.exe"
     if not vsim_path.exists():
         print(f"❌ vsim.exe não encontrado")
         return None
     
+    modelsim_dir = get_simulation_directory(project_path)
+    
     print(f"🎯 Iniciando simulação: {tb_name}")
     
-    # Cria script de simulação
-    do_file = _create_simulation_script(project_path, tb_name)
+    # Cria script de simulação no diretório de simulação
+    do_file = _create_simulation_script(modelsim_dir, tb_name)
     
-    # Executa simulação
+    # Executa simulação no diretório de simulação
     cmd = [str(vsim_path), "-c", "-do", "simulate.do"]
-    result = _execute_simulation_command(cmd, project_path, tb_name, timeout)
+    result = _execute_simulation_command(cmd, modelsim_dir, tb_name, timeout)
     
     return result
 
 def run_modelsim_simulation_with_organization(project_path: Path, tb_name: str, 
                                             out_dir: Path, N: any = "default") -> Optional[SimulationResult]:
-    """Executa simulação e organiza arquivos de resultado."""
+    """Executa simulação e organiza arquivos na estrutura Quartus."""
     # Executa simulação
     sim_results = run_modelsim_simulation(project_path, tb_name)
     
-    # Organiza arquivos
+    # Organiza arquivos na estrutura simulation/modelsim/
     sim_dir = organize_simulation_files(project_path, out_dir, tb_name, N)
     
     # Adiciona informação do diretório
@@ -261,9 +284,9 @@ def run_modelsim_simulation_with_organization(project_path: Path, tb_name: str,
     
     return sim_results
 
-def _create_simulation_script(project_path: Path, tb_name: str) -> Path:
+def _create_simulation_script(sim_dir: Path, tb_name: str) -> Path:
     """Cria script DO para simulação ModelSim."""
-    do_file = project_path / "simulate.do"
+    do_file = sim_dir / "simulate.do"
     
     with open(do_file, "w") as f:
         f.write("# Script de simulação ModelSim\n")
@@ -275,7 +298,7 @@ def _create_simulation_script(project_path: Path, tb_name: str) -> Path:
     
     return do_file
 
-def _execute_simulation_command(cmd: List[str], project_path: Path, 
+def _execute_simulation_command(cmd: List[str], sim_dir: Path, 
                               tb_name: str, timeout: int) -> Optional[SimulationResult]:
     """Executa comando de simulação e processa resultados."""
     try:
@@ -283,12 +306,12 @@ def _execute_simulation_command(cmd: List[str], project_path: Path,
             cmd, 
             capture_output=True, 
             text=True, 
-            cwd=project_path,
+            cwd=sim_dir,  # Agora no diretório de simulação
             timeout=timeout
         )
         
-        # Salva log
-        log_file = _save_simulation_log(project_path, tb_name, result)
+        # Salva log no diretório de simulação
+        log_file = _save_simulation_log(sim_dir, tb_name, result)
         
         # Processa resultado
         return _process_simulation_result(log_file, tb_name, result.returncode)
@@ -310,10 +333,10 @@ def _execute_simulation_command(cmd: List[str], project_path: Path,
             "Errors": 1
         }
 
-def _save_simulation_log(project_path: Path, tb_name: str, 
+def _save_simulation_log(sim_dir: Path, tb_name: str, 
                         result: subprocess.CompletedProcess) -> Path:
-    """Salva log detalhado da simulação."""
-    log_file = project_path / f"simulation_{tb_name}.log"
+    """Salva log detalhado da simulação no diretório de simulação."""
+    log_file = sim_dir / f"simulation_{tb_name}.log"
     
     with open(log_file, "w", encoding='utf-8') as f:
         f.write("=== STDOUT ===\n")
@@ -322,7 +345,7 @@ def _save_simulation_log(project_path: Path, tb_name: str,
         f.write(result.stderr)
         f.write(f"\n=== RETURN CODE: {result.returncode} ===\n")
     
-    print(f"📄 Log salvo: {log_file.name}")
+    print(f"📄 Log salvo: {log_file.relative_to(sim_dir.parent.parent)}")
     return log_file
 
 def _process_simulation_result(log_file: Path, tb_name: str, 
@@ -412,89 +435,85 @@ def _determine_simulation_status(content: str, results: SimulationResult):
         results["Simulation_Status"] = "ALL_PASSED"
 
 # =============================================================================
-# ORGANIZAÇÃO DE ARQUIVOS
+# ORGANIZAÇÃO DE ARQUIVOS (ATUALIZADA)
 # =============================================================================
 
 def organize_simulation_files(project_path: Path, out_dir: Path, 
                             tb_name: str, N: any = "default") -> Path:
-    """Organiza arquivos de simulação em diretório específico."""
-    sim_dir = out_dir / "simulation"
-    sim_dir.mkdir(exist_ok=True)
+    """Organiza arquivos de simulação em estrutura Quartus."""
+    # Diretório específico para esta simulação
+    sim_results_dir = get_simulation_results_dir(project_path, tb_name, N)
+    sim_results_dir.mkdir(parents=True, exist_ok=True)
     
-    # Padrões de arquivos a serem movidos
+    # Diretório base de simulação
+    modelsim_dir = get_simulation_directory(project_path)
+    
+    # Padrões de arquivos a serem organizados
     simulation_files = [
         f"simulation_{tb_name}.log",
         f"{tb_name}.vcd",
-        f"{tb_name}_results.log", 
         "simulate.do",
-        "modelsim_work"
     ]
     
-    report_patterns = [
-        "*_SUMMARY.txt",
-        "*_report.csv",
-        "*_results.csv", 
-        "*_dashboard.txt"
-    ]
+    # Move arquivos específicos da simulação
+    moved_files = _move_simulation_files(modelsim_dir, sim_results_dir, simulation_files)
     
-    moved_files = _move_simulation_files(project_path, sim_dir, 
-                                       simulation_files + report_patterns, N)
+    # Copia todo o diretório work (library compilada)
+    work_dir = get_modelsim_work_dir(project_path)
+    if work_dir.exists():
+        work_dest = sim_results_dir / "work"
+        if work_dest.exists():
+            shutil.rmtree(work_dest)
+        shutil.copytree(work_dir, work_dest)
+        moved_files.append("work/")
     
     if moved_files:
-        print(f"📁 Arquivos organizados em: {sim_dir.name}")
+        rel_path = sim_results_dir.relative_to(project_path)
+        print(f"📁 Arquivos organizados em: {rel_path}")
+        print(f"   📄 {', '.join(moved_files[:5])}{'...' if len(moved_files) > 5 else ''}")
     
-    return sim_dir
+    return sim_results_dir
 
-def _move_simulation_files(project_path: Path, sim_dir: Path, 
-                          patterns: List[str], N: any) -> List[str]:
+def _move_simulation_files(source_dir: Path, dest_dir: Path, 
+                          patterns: List[str]) -> List[str]:
     """Move arquivos de simulação para diretório organizado."""
     moved_files = []
     
     for pattern in patterns:
-        for file_path in project_path.glob(pattern):
-            if file_path.exists():
-                dst_path = _get_destination_path(file_path, sim_dir, N)
-                
-                if file_path.is_dir():
-                    if dst_path.exists():
-                        shutil.rmtree(dst_path)
-                    shutil.copytree(file_path, dst_path)
-                else:
-                    shutil.copy2(file_path, dst_path)
-                
-                moved_files.append(dst_path.name)
+        for file_path in source_dir.glob(pattern):
+            if file_path.exists() and file_path.is_file():
+                dest_path = dest_dir / file_path.name
+                shutil.copy2(file_path, dest_path)
+                moved_files.append(file_path.name)
     
     return moved_files
 
-def _get_destination_path(file_path: Path, sim_dir: Path, N: any) -> Path:
-    """Gera caminho de destino para arquivo de simulação."""
-    if file_path.is_dir():
-        return sim_dir / f"{file_path.name}_N{N}"
-    else:
-        new_name = f"{file_path.stem}_N{N}{file_path.suffix}"
-        return sim_dir / new_name
-
 # =============================================================================
-# FUNÇÕES DE DEBUG (OPCIONAIS)
+# FUNÇÕES DE DEBUG (ATUALIZADAS)
 # =============================================================================
 
 def debug_simulation_issue(project_path: Path, tb_name: str):
     """Faz debug detalhado de problemas na simulação."""
     print(f"\n🔍 DEBUG Simulação: {tb_name}")
     
-    work_dir = project_path / "modelsim_work"
+    modelsim_dir = get_simulation_directory(project_path)
+    work_dir = get_modelsim_work_dir(project_path)
+    
     if not work_dir.exists():
-        print("❌ Diretório 'modelsim_work' não encontrado")
+        print("❌ Diretório 'work' não encontrado")
         return
     
-    # Lista arquivos compilados
-    print("📁 Arquivos no modelsim_work:")
-    for file in work_dir.rglob("*"):
-        print(f"   {file.relative_to(work_dir)}")
+    # Lista estrutura de simulação
+    print("📁 Estrutura de simulação:")
+    for item in modelsim_dir.rglob("*"):
+        if item.is_relative_to(modelsim_dir):
+            rel_path = item.relative_to(modelsim_dir)
+            type_icon = "📁" if item.is_dir() else "📄"
+            print(f"   {type_icon} {rel_path}")
     
     # Lista módulos na library
     cmd_list = [str(config.MODELSIM_DIR / "vdir"), "-lib", "work"]
-    result = subprocess.run(cmd_list, capture_output=True, text=True, cwd=project_path)
+    result = subprocess.run(cmd_list, capture_output=True, text=True, cwd=modelsim_dir)
     
     print("📋 Módulos na library 'work':")
     print(result.stdout if result.stdout else "   (vazia)")
