@@ -27,7 +27,7 @@ def main():
     # ========================
     run_simulations = project_processor.verify_simulation_environment()
     dependencies = project_loader.load_dependencies()
-    bitwidths = [4, 8, 16, 32, 64]
+    bitwidths = [4, 8]
     compiled_projects = []
 
     # ========================

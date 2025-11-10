@@ -35,17 +35,29 @@ def collect_reports_from_projects(compiled_projects: List[CompiledProject]) -> L
     for project in compiled_projects:
         module_name, project_path, N, out_dir, copied_tbs, sim_results = project
         
-        # Aguarda relatório de potência
-        if not wait_for_power_report(module_name, out_dir, N):
+        # Extrai dados de compilação
+        data = report.extract_data_from_reports(module_name, project_path, out_dir, N)
+        if not data:
             continue
         
-        # Extrai dados - agora a função sabe buscar na estrutura correta
-        data = report.extract_data_from_reports(module_name, project_path, out_dir, N)
-        if data:
-            data["N"] = N
-            if sim_results:
-                data["Simulation_Results"] = sim_results
-            all_reports.append(data)
+        data["N"] = N
+        
+        # Tenta extrair dados de simulação dos arquivos SUMMARY
+        simulation_data = report.extract_simulation_data(module_name, project_path, N)
+        
+        if simulation_data:
+            # Usa os dados dos arquivos SUMMARY (mais confiáveis)
+            print(f"   ✅ Dados de simulação encontrados em arquivos SUMMARY")
+            data["Simulation_Results"] = simulation_data
+        elif sim_results:
+            # Fallback: usa resultados antigos da simulação
+            print(f"   ⚠️ Usando dados de simulação do ModelSim (pode estar desatualizado)")
+            data["Simulation_Results"] = sim_results
+        else:
+            print(f"   ℹ️ Nenhum dado de simulação disponível")
+            data["Simulation_Results"] = []
+        
+        all_reports.append(data)
     
     return all_reports
 
