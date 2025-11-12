@@ -217,11 +217,16 @@ def copy_project_files(module_name: str, verilog_file: Path, dependencies_tree: 
 # CARREGAMENTO DE PROJETOS HIERÁRQUICOS
 # =============================================================================
 
+# compile.py - Modifique a função copy_hierarchical_projects
+
 def copy_hierarchical_projects(tree: Dict, parent_path: Path = None, current_depth: int = 0) -> List[ProjectFiles]:
     """Carrega projetos da estrutura hierárquica."""
     if parent_path is None:
         parent_path = config.RTL_DIR
 
+    # PRIMEIRO: Copia a estrutura de diretórios
+    copy_project_directory_structure(tree)
+    
     built_projects = []
     valid_modules = get_all_modules_from_tree(tree)
     
@@ -243,13 +248,18 @@ def copy_hierarchical_projects(tree: Dict, parent_path: Path = None, current_dep
                 print(f"{'  ' * depth}⏭️  Ignorado (não está no JSON): {module_name}")
                 continue
             
-            # Copia arquivos do projeto
-            project_path, rtl_files, sdc_files = copy_project_files(
-                module_name, verilog_file, tree
+            # AGORA: Usa a estrutura de BUILD já criada
+            # Calcula o caminho correspondente em BUILD
+            relative_path = current_path.relative_to(config.RTL_DIR)
+            build_project_path = config.BUILD_DIR / relative_path / module_name
+            
+            # Copia arquivos do projeto para a estrutura organizada
+            project_path, rtl_files, sdc_files = copy_project_files_to_structured_path(
+                module_name, verilog_file, tree, build_project_path
             )
             
             print(f"{'  ' * depth}📦 {module_name}")
-            print(f"{'  ' * (depth + 1)}📁 Build: {project_path.name}")
+            print(f"{'  ' * (depth + 1)}📁 Build: {project_path.relative_to(config.BUILD_DIR)}")
             
             built_projects.append((module_name, project_path, rtl_files, sdc_files))
 
@@ -268,12 +278,39 @@ def copy_hierarchical_projects(tree: Dict, parent_path: Path = None, current_dep
     print(f"✅ {len(built_projects)} projetos processados do JSON")
     return built_projects
 
+def copy_project_files_to_structured_path(module_name: str, verilog_file: Path, 
+                                        dependencies_tree: Dict, project_path: Path) -> ProjectFiles:
+    """Copia arquivos para projeto em estrutura organizada."""
+    # Cria pasta do projeto específica
+    project_path.mkdir(parents=True, exist_ok=True)
+    
+    # Copia arquivo RTL principal
+    dst_file = project_path / verilog_file.name
+    shutil.copy(verilog_file, dst_file)
+    
+    # Copia dependências
+    all_rtl_files = copy_dependencies(module_name, project_path, dependencies_tree)
+    all_rtl_files.append(dst_file)
+    
+    # Copia SDCs
+    sdc_files = find_corresponding_sdc(verilog_file)
+    copied_sdc_files = []
+    for sdc_file in sdc_files:
+        sdc_dst = project_path / sdc_file.name
+        shutil.copy(sdc_file, sdc_dst)
+        copied_sdc_files.append(sdc_dst)
+        print(f"   📋 SDC: {sdc_file.name}")
+    
+    return (project_path, all_rtl_files, copied_sdc_files)
+
 # =============================================================================
 # CARREGAMENTO DE PROJETOS PLANOS (COMPATIBILIDADE)
 # =============================================================================
 
 def copy_files_for_project(project_name: str, module_name: str, dependencies_dict: Dict) -> ProjectFiles:
     """Carrega projetos da estrutura plana."""
+    # Para estrutura plana, mantém o comportamento original
+    # mas cria dentro da estrutura BUILD
     project_path = config.BUILD_DIR / project_name
     project_path.mkdir(parents=True, exist_ok=True)
 
@@ -471,3 +508,52 @@ def compile_project_with_n(project_name: str, project_path: Path, N: int) -> boo
     )
     
     return True
+
+
+# compile.py - Adicione estas funções
+
+def get_project_directories_from_tree(tree: Dict, base_path: Path = None) -> Set[Path]:
+    """Obtém todos os diretórios que contêm projetos baseado na árvore JSON."""
+    if base_path is None:
+        base_path = config.RTL_DIR
+    
+    project_dirs = set()
+    
+    def find_project_dirs(node, current_path):
+        if isinstance(node, dict):
+            # Verifica se este nó tem módulos (não é apenas container)
+            has_modules = any(
+                not isinstance(sub_node, dict) or not sub_node  # Módulo folha ou dict vazio
+                for sub_node in node.values()
+            )
+            
+            if has_modules and current_path.exists():
+                project_dirs.add(current_path)
+            
+            # Processa subdiretórios
+            for key, value in node.items():
+                if isinstance(value, dict):
+                    sub_path = current_path / key
+                    find_project_dirs(value, sub_path)
+    
+    find_project_dirs(tree, base_path)
+    return project_dirs
+
+def copy_project_directory_structure(tree: Dict):
+    """Copia a estrutura de diretórios do RTL para BUILD apenas para pastas com projetos."""
+    project_dirs = get_project_directories_from_tree(tree)
+    
+    print("📁 Copiando estrutura de diretórios...")
+    
+    for rtl_dir in project_dirs:
+        # Calcula o caminho correspondente em BUILD
+        relative_path = rtl_dir.relative_to(config.RTL_DIR)
+        build_dir = config.BUILD_DIR / relative_path
+        
+        # Cria o diretório se não existir (apenas a estrutura)
+        if not build_dir.exists():
+            build_dir.mkdir(parents=True, exist_ok=True)
+            print(f"   📂 Criado: {relative_path}")
+    
+    print(f"✅ Estrutura copiada: {len(project_dirs)} diretórios com projetos")
+    return project_dirs

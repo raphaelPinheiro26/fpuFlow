@@ -77,3 +77,4 @@ def setup_project_environment(module_name: str, dependencies: Dict) -> ProjectIn
         print("ℹ️ Nenhum testbench encontrado")
     
     return (module_name, project_path, rtl_files, sdc_files, copied_tbs)
+

@@ -103,6 +103,9 @@ def _copy_project_files_to_n_dir(project_path: Path, n_dir: Path,
                                rtl_files: List[Path], sdc_files: List[Path], 
                                tb_files: List[Path]):
     """Copia todos os arquivos do projeto para diretório N específico."""
+    # Garante que o diretório N está dentro da estrutura organizada
+    n_dir.mkdir(parents=True, exist_ok=True)
+    
     # Copia arquivos RTL
     for rtl_file in rtl_files:
         if rtl_file.exists():
@@ -118,7 +121,7 @@ def _copy_project_files_to_n_dir(project_path: Path, n_dir: Path,
         if tb_file.exists():
             shutil.copy2(tb_file, n_dir / tb_file.name)
     
-    print(f"   📁 Arquivos copiados para: {n_dir.name}")
+    print(f"   📁 Arquivos copiados para: {n_dir.relative_to(project_path.parent)}")
 
 def compile_project_with_n(project_info: Tuple, N: int, run_simulations: bool) -> CompiledProject:
     """Compila uma variante específica de N para projeto parametrizado."""
