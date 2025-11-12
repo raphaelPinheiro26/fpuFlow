@@ -1,0 +1,5 @@
+Module,Parameter_N,Clock,Fmax_MHz,Restricted_Fmax_MHz,Setup_Slack_ns,Hold_Slack_ns,Logic_Utilization_ALMs,Total_Registers,Total_Pins,Total_Power_mW,Dynamic_Power_mW,Static_Power_mW,IO_Power_mW
+full_adder,default,CLOCK_50,50.0,50.0,8.535,6.028,2,0,6,419.87,0.00,411.22,9.02
+half_adder,default,CLOCK_50,50.0,50.0,8.535,6.028,2,0,5,420.25,0.00,411.23,9.02
+rca,4,CLOCK_50,50.0,50.0,8.535,6.028,4,0,15,420.86,0.00,411.23,9.02
+rca,8,CLOCK_50,50.0,50.0,8.535,6.028,9,0,27,421.55,0.00,411.23,9.02

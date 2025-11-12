@@ -22,9 +22,9 @@ def generate_hierarchical_reports(compiled_projects: List, dependencies: Dict):
         
         report_data = report.extract_data_from_reports(module_name, project_path, out_dir, N)
         if report_data:
+            report_data["Module_Name"] = module_name
             report_data["N"] = N
             report_data["Simulation_Results"] = sim_results
-            report_data["Module_Name"] = module_name
             all_reports_data.append(report_data)
     
     if not all_reports_data:
@@ -40,9 +40,11 @@ def generate_hierarchical_reports(compiled_projects: List, dependencies: Dict):
     # Organiza por hierarquia
     hierarchical_data = _organize_by_hierarchy(all_reports_data)
     
-    # Gera relatórios
-    _generate_hierarchical_csv(hierarchical_data, base_report_dir)
-    _generate_hierarchical_summary(hierarchical_data, base_report_dir)
+    # Gera relatórios consolidados da raiz
+    _generate_root_reports(hierarchical_data, base_report_dir)
+    
+    # Gera relatórios hierárquicos
+    _generate_hierarchical_reports_recursive(hierarchical_data, base_report_dir)
     
     print("✅ Relatórios hierárquicos gerados!")
 
@@ -56,7 +58,8 @@ def _organize_by_hierarchy(all_reports_data: List[Dict]) -> Dict:
         # Encontra caminho RTL do módulo
         rtl_path = _find_rtl_path(module_name)
         if not rtl_path:
-            continue
+            # Se não encontrou, coloca na raiz
+            rtl_path = Path(".")
         
         # Adiciona à estrutura hierárquica
         current_level = hierarchical_data
@@ -78,25 +81,52 @@ def _find_rtl_path(module_name: str) -> Optional[Path]:
         return rtl_file.relative_to(config.RTL_DIR).parent
     return None
 
-def _generate_hierarchical_csv(hierarchical_data: Dict, base_dir: Path, current_path: Path = None):
-    """Gera CSVs recursivamente para cada nível."""
-    if current_path is None:
-        current_path = base_dir
-    
-    # Coleta todos os módulos deste nível e subníveis
+def _generate_root_reports(hierarchical_data: Dict, base_dir: Path):
+    """Gera relatórios consolidados na raiz."""
     all_modules = _collect_all_modules(hierarchical_data)
     
-    if all_modules:
-        # Gera CSV para este nível
-        csv_file = current_path / "level_report.csv"
-        _write_hierarchical_csv(all_modules, csv_file)
+    # Relatório de compilação geral
+    compilation_file = base_dir / "00_geral_compilation_report.csv"
+    _write_compilation_csv(all_modules, compilation_file)
+    
+    # Relatório de simulação geral
+    simulation_file = base_dir / "00_geral_simulation_report.csv"
+    _write_simulation_csv(all_modules, simulation_file)
+    
+    # Sumário geral
+    summary_file = base_dir / "00_geral_simulation_summary.txt"
+    _write_simulation_summary(all_modules, summary_file, "PROJETO COMPLETO")
+
+def _generate_hierarchical_reports_recursive(hierarchical_data: Dict, current_dir: Path, level_path: Path = None):
+    """Gera relatórios recursivamente para cada nível."""
+    if level_path is None:
+        level_path = Path(".")
+    
+    # Gera relatórios para este nível (se tiver módulos)
+    if "modules" in hierarchical_data:
+        level_name = current_dir.name
+        
+        # Determina o nome do relatório baseado no nível
+        if level_path == Path("."):
+            report_name = "geral"
+        else:
+            report_name = level_name
+        
+        compilation_file = current_dir / f"compilation_report_{report_name}.csv"
+        _write_compilation_csv(hierarchical_data["modules"], compilation_file)
+        
+        simulation_file = current_dir / f"simulation_report_{report_name}.csv"
+        _write_simulation_csv(hierarchical_data["modules"], simulation_file)
+        
+        summary_file = current_dir / f"simulation_summary_{report_name}.txt"
+        _write_simulation_summary(hierarchical_data["modules"], summary_file, report_name.upper())
     
     # Processa subdiretórios
     for key, value in hierarchical_data.items():
         if key != "modules":
-            sub_dir = current_path / key
+            sub_dir = current_dir / key
             sub_dir.mkdir(exist_ok=True)
-            _generate_hierarchical_csv(value, base_dir, sub_dir)
+            _generate_hierarchical_reports_recursive(value, sub_dir, level_path / key)
 
 def _collect_all_modules(hierarchical_data: Dict) -> List[Dict]:
     """Coleta todos os módulos de um nível e seus subníveis."""
@@ -111,8 +141,8 @@ def _collect_all_modules(hierarchical_data: Dict) -> List[Dict]:
     
     return all_modules
 
-def _write_hierarchical_csv(modules: List[Dict], csv_file: Path):
-    """Escreve CSV para um nível hierárquico."""
+def _write_compilation_csv(modules: List[Dict], csv_file: Path):
+    """Escreve CSV de compilação para um nível hierárquico."""
     if not modules:
         return
     
@@ -120,7 +150,7 @@ def _write_hierarchical_csv(modules: List[Dict], csv_file: Path):
         "Module", "Parameter_N", "Clock", "Fmax_MHz", "Restricted_Fmax_MHz",
         "Setup_Slack_ns", "Hold_Slack_ns", "Logic_Utilization_ALMs", 
         "Total_Registers", "Total_Pins", "Total_Power_mW", "Dynamic_Power_mW",
-        "Static_Power_mW", "IO_Power_mW", "Simulation_Status"
+        "Static_Power_mW", "IO_Power_mW"
     ]
     
     with open(csv_file, "w", newline="", encoding="utf-8") as f:
@@ -128,14 +158,14 @@ def _write_hierarchical_csv(modules: List[Dict], csv_file: Path):
         writer.writerow(header)
         
         for module_data in modules:
-            rows = _extract_module_rows(module_data)
+            rows = _extract_compilation_rows(module_data)
             for row in rows:
                 writer.writerow(row)
     
-    print(f"   ✅ {csv_file.relative_to(config.REPORT_DIR)}")
+    print(f"   📊 Compilação: {csv_file.relative_to(config.REPORT_DIR)}")
 
-def _extract_module_rows(module_data: Dict) -> List[List]:
-    """Extrai linhas de dados de um módulo."""
+def _extract_compilation_rows(module_data: Dict) -> List[List]:
+    """Extrai linhas de dados de compilação de um módulo."""
     rows = []
     module_name = module_data["Module_Name"]
     N = module_data.get("N", "default")
@@ -145,17 +175,6 @@ def _extract_module_rows(module_data: Dict) -> List[List]:
     setup_slack = module_data.get("SetupSlack", {})
     hold_slack = module_data.get("HoldSlack", {})
     power = module_data.get("Power", {})
-    
-    # Status de simulação
-    sim_results = module_data.get("Simulation_Results", [])
-    sim_status = "NO_SIM"
-    if sim_results:
-        if all(r.get("Simulation_Status") == "ALL_PASSED" for r in sim_results):
-            sim_status = "ALL_PASSED"
-        elif any(r.get("Simulation_Status") == "ALL_PASSED" for r in sim_results):
-            sim_status = "SOME_PASSED"
-        else:
-            sim_status = "FAILED"
     
     for clock in clocks:
         clock_name = clock["Clock"]
@@ -174,7 +193,6 @@ def _extract_module_rows(module_data: Dict) -> List[List]:
             power.get("Dynamic", ""),
             power.get("Static", ""),
             power.get("IO", ""),
-            sim_status
         ]
         rows.append(row)
     
@@ -186,69 +204,121 @@ def _extract_module_rows(module_data: Dict) -> List[List]:
             module_data.get("Total registers", ""),
             module_data.get("Total pins", ""),
             power.get("Total", ""), power.get("Dynamic", ""),
-            power.get("Static", ""), power.get("IO", ""), sim_status
+            power.get("Static", ""), power.get("IO", ""),
         ]
         rows.append(row)
     
     return rows
 
-def _generate_hierarchical_summary(hierarchical_data: Dict, base_dir: Path):
-    """Gera resumo geral da hierarquia."""
-    summary_file = base_dir / "hierarchical_summary.txt"
+def _write_simulation_csv(modules: List[Dict], csv_file: Path):
+    """Escreve CSV de simulação para um nível hierárquico."""
+    if not modules:
+        return
+    
+    header = [
+        "Module", "Parameter_N", "Testbench", "Total_Tests", "Tests_Passed",
+        "Tests_Failed", "Success_Rate_%", "Status", "Warnings", "Errors",
+        "Simulation_Time", "Simulation_Directory"
+    ]
+    
+    with open(csv_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        
+        for module_data in modules:
+            rows = _extract_simulation_rows(module_data)
+            for row in rows:
+                writer.writerow(row)
+    
+    print(f"   🧪 Simulação: {csv_file.relative_to(config.REPORT_DIR)}")
+
+def _extract_simulation_rows(module_data: Dict) -> List[List]:
+    """Extrai linhas de dados de simulação de um módulo."""
+    rows = []
+    module_name = module_data["Module_Name"]
+    N = module_data.get("N", "default")
+    sim_results = module_data.get("Simulation_Results", [])
+    
+    for sim_result in sim_results:
+        row = [
+            module_name,
+            N,
+            sim_result.get("TB_Name", ""),
+            sim_result.get("Total_Tests", 0),
+            sim_result.get("Tests_Passed", 0),
+            sim_result.get("Tests_Failed", 0),
+            f"{sim_result.get('Success_Rate', 0):.2f}",
+            sim_result.get("Simulation_Status", "UNKNOWN"),
+            sim_result.get("Warnings", 0),
+            sim_result.get("Errors", 0),
+            sim_result.get("Simulation_Time", ""),
+            sim_result.get("Simulation_Directory", ""),
+        ]
+        rows.append(row)
+    
+    # Se não tem simulações, cria uma linha indicando isso
+    if not rows and "modules" in module_data:  # Só para nível de módulo, não para diretório
+        row = [
+            module_name, N, "NO_SIMULATION", 0, 0, 0, "0.00", 
+            "NO_SIM", 0, 0, "", ""
+        ]
+        rows.append(row)
+    
+    return rows
+
+def _write_simulation_summary(modules: List[Dict], summary_file: Path, level_name: str):
+    """Escreve resumo de simulação para um nível hierárquico."""
+    simulation_data = []
+    
+    for module_data in modules:
+        sim_results = module_data.get("Simulation_Results", [])
+        for sim_result in sim_results:
+            simulation_data.append({
+                "module": module_data["Module_Name"],
+                "N": module_data.get("N", "default"),
+                **sim_result
+            })
     
     with open(summary_file, "w", encoding="utf-8") as f:
-        f.write("=" * 70 + "\n")
-        f.write("           RESUMO GERAL DA HIERARQUIA DE PROJETOS\n")
-        f.write("=" * 70 + "\n\n")
+        f.write("=" * 60 + "\n")
+        f.write(f"RELATÓRIO DE SIMULAÇÃO - {level_name}\n")
+        f.write("=" * 60 + "\n\n")
         
-        stats = _calculate_hierarchy_stats(hierarchical_data)
+        if not simulation_data:
+            f.write("Nenhum dado de simulação disponível para este nível.\n")
+            return
         
-        f.write("📈 ESTATÍSTICAS GERAIS:\n")
-        f.write(f"   • Total de módulos: {stats['total_modules']}\n")
-        f.write(f"   • Módulos com parâmetro N: {stats['parametrized_modules']}\n")
-        f.write(f"   • Módulos simulados: {stats['simulated_modules']}\n")
-        f.write(f"   • Taxa de sucesso simulação: {stats['success_rate']:.1f}%\n\n")
+        # Estatísticas
+        total_simulations = len(simulation_data)
+        passed_simulations = sum(1 for s in simulation_data if s.get("Simulation_Status") == "ALL_PASSED")
+        failed_simulations = sum(1 for s in simulation_data if s.get("Simulation_Status") in ["SOME_FAILED", "FAILED"])
+        unknown_simulations = total_simulations - passed_simulations - failed_simulations
         
-        f.write("🌳 ESTRUTURA:\n")
-        _write_hierarchy_tree(f, hierarchical_data)
-
-def _calculate_hierarchy_stats(hierarchy: Dict) -> Dict:
-    """Calcula estatísticas da hierarquia."""
-    all_modules = _collect_all_modules(hierarchy)
-    
-    total_modules = len(all_modules)
-    parametrized_modules = sum(1 for m in all_modules if m.get("N") != "default")
-    
-    simulated_modules = 0
-    successful_sims = 0
-    
-    for module_data in all_modules:
-        sim_results = module_data.get("Simulation_Results", [])
-        if sim_results:
-            simulated_modules += 1
-            if all(r.get("Simulation_Status") == "ALL_PASSED" for r in sim_results):
-                successful_sims += 1
-    
-    success_rate = (successful_sims / simulated_modules * 100) if simulated_modules > 0 else 0
-    
-    return {
-        'total_modules': total_modules,
-        'parametrized_modules': parametrized_modules,
-        'simulated_modules': simulated_modules,
-        'success_rate': success_rate
-    }
-
-def _write_hierarchy_tree(f, hierarchy: Dict, indent: int = 0, prefix: str = ""):
-    """Escreve árvore da hierarquia."""
-    for key, value in hierarchy.items():
-        if key == "modules":
-            for module_data in value:
-                module_name = module_data["Module_Name"]
-                N = module_data.get("N", "default")
-                sim_status = "🧪" if module_data.get("Simulation_Results") else "📄"
-                param_info = f" (N={N})" if N != "default" else ""
-                f.write(f"{prefix}{sim_status} {module_name}{param_info}\n")
-        else:
-            f.write(f"{prefix}📁 {key}/\n")
-            new_prefix = prefix + "  "
-            _write_hierarchy_tree(f, value, indent + 1, new_prefix)
+        success_rate = (passed_simulations / total_simulations * 100) if total_simulations > 0 else 0
+        
+        f.write("📈 ESTATÍSTICAS:\n")
+        f.write(f"   • Total de simulações: {total_simulations}\n")
+        f.write(f"   • Simulações com sucesso: {passed_simulations}\n")
+        f.write(f"   • Simulações com falhas: {failed_simulations}\n")
+        f.write(f"   • Simulações desconhecidas: {unknown_simulations}\n")
+        f.write(f"   • Taxa de sucesso: {success_rate:.1f}%\n\n")
+        
+        if simulation_data:
+            f.write("🧪 DETALHES POR MÓDULO:\n")
+            f.write("-" * 40 + "\n")
+            
+            # Agrupa por módulo
+            modules_summary = {}
+            for sim_data in simulation_data:
+                module = sim_data["module"]
+                if module not in modules_summary:
+                    modules_summary[module] = []
+                modules_summary[module].append(sim_data)
+            
+            for module, sims in modules_summary.items():
+                f.write(f"\n📦 {module}:\n")
+                for sim in sims:
+                    status_icon = "✅" if sim.get("Simulation_Status") == "ALL_PASSED" else "❌"
+                    f.write(f"   {status_icon} {sim.get('TB_Name', 'N/A')} (N={sim['N']}): ")
+                    f.write(f"{sim.get('Tests_Passed', 0)}/{sim.get('Total_Tests', 0)} ")
+                    f.write(f"({sim.get('Success_Rate', 0):.1f}%)\n")

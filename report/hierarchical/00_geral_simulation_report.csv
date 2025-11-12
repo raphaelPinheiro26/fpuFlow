@@ -1,0 +1,5 @@
+Module,Parameter_N,Testbench,Total_Tests,Tests_Passed,Tests_Failed,Success_Rate_%,Status,Warnings,Errors,Simulation_Time,Simulation_Directory
+full_adder,default,full_adder_tb,0,0,0,0.00,UNKNOWN,2,0,,simulation\modelsim\full_adder_tb_Ndefault
+half_adder,default,half_adder_tb,0,0,0,0.00,UNKNOWN,0,0,,simulation\modelsim\half_adder_tb_Ndefault
+rca,4,rca_tb,107,107,0,100.00,ALL_PASSED,10,0,,simulation\modelsim\rca_tb_N4
+rca,8,rca_tb,107,107,0,100.00,ALL_PASSED,18,0,,simulation\modelsim\rca_tb_N8

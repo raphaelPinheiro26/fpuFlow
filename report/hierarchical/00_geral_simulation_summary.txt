@@ -1,0 +1,23 @@
+============================================================
+RELATÓRIO DE SIMULAÇÃO - PROJETO COMPLETO
+============================================================
+
+📈 ESTATÍSTICAS:
+   • Total de simulações: 4
+   • Simulações com sucesso: 2
+   • Simulações com falhas: 0
+   • Simulações desconhecidas: 2
+   • Taxa de sucesso: 50.0%
+
+🧪 DETALHES POR MÓDULO:
+----------------------------------------
+
+📦 full_adder:
+   ❌ full_adder_tb (N=default): 0/0 (0.0%)
+
+📦 half_adder:
+   ❌ half_adder_tb (N=default): 0/0 (0.0%)
+
+📦 rca:
+   ✅ rca_tb (N=4): 107/107 (100.0%)
+   ✅ rca_tb (N=8): 107/107 (100.0%)
