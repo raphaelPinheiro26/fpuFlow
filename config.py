@@ -56,6 +56,14 @@ RTL_FPU_PIPELINE_DIR = RTL_FPU_CORE_DIR / "01_fpu_pipeline"
 RTL_FPU_CONTROLLER_DIR = RTL_FPU_CORE_DIR / "02_fpu_controller"
 RTL_FPU_UNIT_DIR = RTL_FPU_CORE_DIR / "03_fpu_unit"
 
+
+# 7. RISC-V SoC
+RTL_RISCV_SOC_DIR = RTL_DIR / "07_riscv_soc"
+RTL_CORE_INTERFACE_DIR = RTL_RISCV_SOC_DIR / "01_cpu_fpu_interface"
+RTL_CONTROL_UNIT_DIR = RTL_RISCV_SOC_DIR / "02_control_unit" 
+RTL_DATA_PATH_DIR = RTL_RISCV_SOC_DIR / "03_data_path"
+RTL_SYSTEM_INTEGRATION_DIR = RTL_RISCV_SOC_DIR / "04_system_integration"
+
 # ========================
 # DIRETÓRIOS DE SAÍDA
 # ========================
@@ -84,4 +92,8 @@ CATEGORY_MAPPING = {
     "fpu_add": RTL_FPU_ADD_SUB_DIR,
     "fpu_mult": RTL_FPU_MULT_DIR,
     "fpu_div": RTL_FPU_DIV_DIR,
+    "riscv": RTL_RISCV_SOC_DIR,
+    "soc": RTL_RISCV_SOC_DIR,
+    "cpu_interface": RTL_CORE_INTERFACE_DIR,
+    "control_unit": RTL_CONTROL_UNIT_DIR,
 }

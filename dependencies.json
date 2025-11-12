@@ -61,5 +61,22 @@
     },
     "03_fpu_unit": {
     }
+  },
+  "07_riscv_soc": {
+    "01_cpu_fpu_interface": {
+      "riscv_fpu_interface": [],
+      "register_bridge": []
+    },
+    "02_control_unit": {
+      "fpu_coprocessor_ctrl": [],
+      "instruction_decoder": []
+    },
+    "03_data_path": {
+      "data_forwarding_unit": [],
+      "pipeline_controller": []
+    },
+    "04_system_integration": {
+      "riscv_fpu_soc": []
+    }
   }
 }
