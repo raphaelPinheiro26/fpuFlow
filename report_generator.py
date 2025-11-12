@@ -77,3 +77,4 @@ def wait_for_power_report(module_name: str, out_dir: Path, N: any,
         return False
     
     return True
+
