@@ -1,26 +1,65 @@
 {
-  "half_adder": [],
-  "full_adder": ["half_adder"],
-  "rca": ["full_adder"],
-
-  "bit_serial_adder": ["full_adder"],
-  "iterative_adder": ["rca"],
-  "carry_skip_adder": ["rca"],
-  "carry_select_adder": ["rca"],
-  "carry_increment_adder": ["rca"],
-  "conditional_sum_adder": ["hierarchical_cla"],
-  "carry_shifting_adder": ["full_adder"],
-
-  "hierarchical_cla": ["full_adder"],
-  "hierarchical_ling": ["full_adder"],
-
-  "kogge_stone_adder": [],
-  "brent_kung_adder": [],
-  "han_carlson_adder": [],
-  "ladner_fischer_adder": [],
-  "sklansky_adder": [],
-  "sparse_kogge_stone_adder": [],
-  "spanning_tree_adder": [],
-
-  "CSelA_op": ["carry_select_adder"]
+  "01_integer_arithmetic": {
+    "01_adders": {
+      "half_adder": [],
+      "full_adder": ["half_adder"],
+      "rca": ["full_adder"]
+    },
+    "02_multipliers": {
+    },
+    "03_dividers": {
+    }
+  },
+  "02_primitive_units": {
+    "01_lzc": {
+    },
+    "02_barrel_shifters": {
+    },
+    "03_priority_encoders": {
+    },
+    "04_compressors": {
+    }
+  },
+  "03_common_modules": {
+    "01_unpack": {
+    },
+    "02_normalize": {
+    },
+    "03_round": {
+    },
+    "04_pack": {
+    }
+  },
+  "04_specific_operations": {
+    "01_mantissa_align": {
+    },
+    "02_mantissa_add_sub": {
+    },
+    "03_exponent_processing": {
+    },
+    "04_special_cases": {
+    }
+  },
+  "05_fpu_operations": {
+    "01_fpu_add_sub": {
+    },
+    "02_fpu_mult": {
+    },
+    "03_fpu_div": {
+    },
+    "04_fpu_sqrt": {
+    },
+    "05_fpu_compare": {
+    },
+    "06_fpu_convert": {
+    }
+  },
+  "06_fpu_core": {
+    "01_fpu_pipeline": {
+    },
+    "02_fpu_controller": {
+    },
+    "03_fpu_unit": {
+    }
+  }
 }

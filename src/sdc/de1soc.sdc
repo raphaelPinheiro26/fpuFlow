@@ -11,7 +11,5 @@ create_clock -name CLOCK_50 -period 20.0 [get_ports {CLOCK_50}]
 set_clock_uncertainty -to [get_clocks {CLOCK_50}] 0.2
 
 # === PADRÕES DE ENTRADA/SAÍDA (opcional) ===
-set_input_delay  5.0 -clock [get_clocks {CLOCK_50}] [all_inputs]
-set_output_delay 5.0 -clock [get_clocks {CLOCK_50}] [all_outputs]
-
-
+set_input_delay  1.500 -clock [get_clocks {CLOCK_50}] [all_inputs]
+set_output_delay 1.500 -clock [get_clocks {CLOCK_50}] [all_outputs]

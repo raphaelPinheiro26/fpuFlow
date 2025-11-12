@@ -1,0 +1,5 @@
+Parameter,Project,Clock,Fmax(MHz),Restricted_Fmax(MHz),SetupSlack(ns),HoldSlack(ns),Logic utilization (in ALMs),Total registers,Total pins,Total Thermal Power (mW),Core Dynamic Power (mW),Core Static Power (mW),I/O Power (mW)
+,full_adder,CLOCK_50,50.0,50.0,8.535,6.028,2,0,6,419.87,0.00,411.22,9.02
+,half_adder,CLOCK_50,50.0,50.0,8.535,6.028,2,0,5,420.25,0.00,411.23,9.02
+4,rca,CLOCK_50,50.0,50.0,8.535,6.028,4,0,15,420.86,0.00,411.23,9.02
+8,rca,CLOCK_50,50.0,50.0,8.535,6.028,9,0,27,421.55,0.00,411.23,9.02
