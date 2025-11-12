@@ -1,0 +1,14 @@
+{
+    "test_name": "integer_add",
+    "operation": "add",
+    "data_type": "integer",
+    "bit_width": 32,
+    "test_cases": [
+        {"a": 10, "b": 20, "expected": 30},
+        {"a": 0, "b": 0, "expected": 0},
+        {"a": 255, "b": 1, "expected": 256}
+    ],
+    "generator": "random",
+    "samples": 100,
+    "metrics": ["accuracy", "latency", "throughput"]
+}
